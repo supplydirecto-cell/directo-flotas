@@ -1,0 +1,2026 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Directo · Gestor de Flotas</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --db:#0057FF;--dbd:#0041CC;--dbl:#E6EEFF;
+  --dg:#1D9E75;--dgl:#E1F5EE;
+  --da:#BA7517;--dal:#FAEEDA;
+  --dr:#A32D2D;--drl:#FCEBEB;
+  --dp:#534AB7;--dpl:#EEEDFE;
+  --g50:#F7F8FC;--g100:#EEF0F6;--g200:#D8DCE8;
+  --g400:#9BA3B8;--g600:#5A6278;--g800:#2D3148;
+  --r:8px;--rl:12px;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;font-size:13px;color:var(--g800);background:#F0F2F8;min-height:100vh}
+.app{max-width:1360px;margin:0 auto;padding:16px}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:54px;background:var(--db);border-radius:var(--rl) var(--rl) 0 0;box-shadow:0 2px 8px rgba(0,87,255,.3)}
+.tl{display:flex;align-items:center;gap:10px}
+.tl .icon{width:34px;height:34px;background:rgba(255,255,255,.15);border-radius:10px;display:flex;align-items:center;justify-content:center}
+.tl span{font-size:15px;font-weight:600;color:#fff;letter-spacing:-.3px}
+.tr{display:flex;align-items:center;gap:8px}
+.rol-pill{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;background:rgba(255,255,255,.15);color:#fff;font-size:11px;cursor:pointer;border:1px solid rgba(255,255,255,.25)}
+.rol-pill.admin{background:rgba(255,255,255,.28)}
+.btn-top{display:inline-flex;align-items:center;gap:5px;padding:7px 16px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:none}
+.btn-top.white{background:#fff;color:var(--db)}.btn-top.white:disabled{opacity:.45;cursor:not-allowed}
+.btn-top.ghost{background:rgba(255,165,0,.2);color:#FFD080;border:1px solid rgba(255,165,0,.35)}
+.sbar{display:flex;align-items:center;justify-content:space-between;padding:7px 20px;background:var(--dbl);border-bottom:1px solid #C5D8F8;font-size:11px}
+.nav{display:flex;background:#fff;border-bottom:2px solid var(--g100);overflow-x:auto}
+.nav::-webkit-scrollbar{height:0}
+.nav button{font-size:12px;padding:10px 14px;border:none;cursor:pointer;background:transparent;color:var(--g600);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;display:flex;align-items:center;gap:5px;transition:all .15s;font-weight:500}
+.nav button.active{color:var(--db);border-bottom-color:var(--db)}
+.nav button:hover:not(.active){background:var(--g50)}
+.nav button .dot{width:6px;height:6px;border-radius:50%;background:var(--dr);display:none;flex-shrink:0}
+.nav button.has-alert .dot{display:inline-block}
+.content{background:#fff;padding:16px;border-radius:0 0 var(--rl) var(--rl);box-shadow:0 4px 12px rgba(0,0,0,.08);min-height:500px}
+.tab{display:none}.tab.active{display:block}
+.cg{display:grid;gap:8px;margin-bottom:12px}
+.c4{grid-template-columns:repeat(4,1fr)}.c3{grid-template-columns:repeat(3,1fr)}.c2{grid-template-columns:1fr 1fr}
+.mc{border-radius:var(--rl);padding:12px 14px;border:1px solid}
+.mc.g{background:var(--dgl);border-color:#9FE1CB}.mc.a{background:var(--dal);border-color:#FAC775}
+.mc.r{background:var(--drl);border-color:#F09595}.mc.gr{background:var(--g50);border-color:var(--g200)}
+.mc .ml{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;opacity:.75}
+.mc.g .ml{color:#0F6E56}.mc.a .ml{color:var(--da)}.mc.r .ml{color:var(--dr)}.mc.gr .ml{color:var(--g600)}
+.mc .mv{font-size:24px;font-weight:600}
+.mc.g .mv{color:#0F6E56}.mc.a .mv{color:var(--da)}.mc.r .mv{color:var(--dr)}.mc.gr .mv{color:var(--g800)}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:var(--r);border:1px solid var(--g200);background:#fff;color:var(--g800);font-size:12px;cursor:pointer;font-weight:500}
+.btn:hover{background:var(--g50)}.btn.pri{background:var(--db);border-color:var(--db);color:#fff}
+.btn.ok{background:var(--dgl);border-color:#9FE1CB;color:#0F6E56}.btn.ko{background:var(--drl);border-color:#F09595;color:var(--dr)}
+.btn.wa{background:var(--dal);border-color:#FAC775;color:var(--da)}.btn.pu{background:var(--dpl);border-color:#AFA9EC;color:var(--dp)}
+.btn.sm{padding:4px 10px;font-size:11px}.btn:disabled{opacity:.4;cursor:not-allowed}
+.tw{border:1px solid var(--g200);border-radius:var(--rl);overflow:hidden;margin-bottom:12px}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+th{font-size:10px;font-weight:600;color:var(--g600);padding:8px 10px;text-align:left;background:var(--g50);border-bottom:1px solid var(--g200);text-transform:uppercase;letter-spacing:.4px}
+td{font-size:11px;padding:7px 10px;border-bottom:1px solid var(--g100);color:var(--g800);vertical-align:middle}
+tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{background:#FFF8F0}
+.b{display:inline-flex;align-items:center;font-size:9px;padding:2px 7px;border-radius:20px;font-weight:600;white-space:nowrap}
+.b.ac{background:var(--dgl);color:#0F6E56;border:1px solid #9FE1CB}
+.b.co{background:var(--dal);color:var(--da);border:1px solid #FAC775}
+.b.de{background:var(--drl);color:var(--dr);border:1px solid #F09595}
+.b.ex{background:#2D3148;color:#fff}
+.b.fp{background:var(--g100);color:var(--g600);border:1px solid var(--g200)}
+.b.me{background:var(--dpl);color:var(--dp);border:1px solid #AFA9EC}
+.b.nv{background:var(--dbl);color:var(--dbd);border:1px solid #B5D4F4}
+.b.pl{background:#F1EFE8;color:#444441;border:1px solid #D3D1C7}
+.b.sb{background:var(--g100);color:var(--g800);border:1px solid var(--g200);font-weight:500}
+.b.ca{background:#FFF0E0;color:#8B4500;border:1px solid #F5C58A}
+.panel{background:var(--g50);border-radius:var(--rl);padding:12px 14px;margin-bottom:12px;border:1px solid var(--g200)}
+.panel h4{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--g600);margin-bottom:9px}
+.sec{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--g600);margin-bottom:9px;display:flex;align-items:center;gap:6px}
+.sec::after{content:'';flex:1;height:1px;background:var(--g200)}
+.tbar{display:flex;align-items:center;gap:8px;margin-bottom:11px;flex-wrap:wrap}
+.fsel{padding:6px 10px;border-radius:var(--r);border:1px solid var(--g200);background:#fff;color:var(--g800);font-size:11px}
+.fsel:focus{outline:none;border-color:var(--db)}
+.sbox{display:flex;align-items:center;gap:7px;padding:6px 12px;border-radius:var(--r);border:1px solid var(--g200);background:#fff;flex:1;max-width:260px}
+.sbox input{border:none;outline:none;background:transparent;font-size:12px;color:var(--g800);width:100%}
+.uz{border:1.5px dashed var(--g200);border-radius:var(--rl);padding:14px;text-align:center;color:var(--g600);font-size:11px;margin-bottom:8px;cursor:pointer}
+.uz.done{border-color:var(--dg);background:var(--dgl)}.uz.pre{border-color:var(--dp);background:var(--dpl)}
+.pg{height:3px;background:var(--g100);border-radius:2px;overflow:hidden;margin-top:4px}
+.pgf{height:100%;background:var(--db);width:0;transition:width .4s}
+.empty{text-align:center;padding:28px 16px;color:var(--g400)}
+.empty i{font-size:28px;display:block;margin-bottom:8px}
+.chip{display:inline-flex;align-items:center;font-size:10px;padding:2px 8px;border-radius:var(--r);background:var(--g100);border:1px solid var(--g200);color:var(--g600)}
+.blk{background:var(--drl);border:1px solid #F09595;border-radius:var(--rl);padding:11px 15px;margin-bottom:13px;display:flex;align-items:center;gap:10px}
+.ibox{border-radius:var(--r);padding:8px 12px;font-size:11px;margin-bottom:9px;border:1px solid}
+.ibox.ch{background:var(--drl);border-color:#F09595;color:var(--dr)}
+.ibox.sa{background:var(--dal);border-color:#FAC775;color:var(--da)}
+.ibox.in{background:var(--dbl);border-color:#B5D4F4;color:var(--dbd)}
+.ibox.ok{background:var(--dgl);border-color:#9FE1CB;color:#0F6E56}
+.ibox.pu{background:var(--dpl);border-color:#AFA9EC;color:var(--dp)}
+.bc{display:flex;flex-direction:column;gap:7px}
+.br{display:flex;align-items:center;gap:8px}
+.bl{font-size:10px;color:var(--g600);width:120px;flex-shrink:0;text-align:right}
+.bt{flex:1;height:14px;background:var(--g100);border-radius:7px;overflow:hidden}
+.bf{height:100%;border-radius:7px;transition:width .6s}
+.bv{font-size:10px;color:var(--g800);font-weight:600;width:32px;flex-shrink:0}
+.sc{border:1px solid #FAC775;border-radius:var(--rl);background:#fff;margin-bottom:10px;overflow:hidden}
+.sh{display:flex;align-items:center;justify-content:space-between;padding:9px 13px;background:var(--dal);border-bottom:1px solid #FAC775}
+.sb2{padding:11px 13px}
+.ni{display:flex;align-items:flex-start;gap:7px;padding:5px 0;border-bottom:1px solid var(--g100)}
+.ni:last-child{border-bottom:none}
+.ns{font-size:9px;background:var(--g100);border-radius:var(--r);padding:2px 6px;white-space:nowrap;flex-shrink:0;color:var(--g600)}
+.mbg{position:fixed;inset:0;background:rgba(45,49,72,.55);display:flex;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(2px)}
+.modal{background:#fff;border-radius:var(--rl);border:1px solid var(--g200);padding:20px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 40px rgba(0,0,0,.15)}
+.modal.wide{width:760px}.modal h3{font-size:15px;font-weight:600;margin-bottom:14px;color:var(--g800)}
+.fg{margin-bottom:11px}
+.fg label{display:block;font-size:11px;font-weight:600;color:var(--g600);margin-bottom:4px}
+.fg input,.fg select,.fg textarea{width:100%;padding:7px 10px;border-radius:var(--r);border:1px solid var(--g200);background:#fff;color:var(--g800);font-size:12px;font-family:inherit}
+.fg input:focus,.fg select:focus,.fg textarea:focus{outline:none;border-color:var(--db)}
+.fg textarea{resize:vertical;min-height:52px}
+.ma{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;padding-top:14px;border-top:1px solid var(--g100)}
+.dc{border:1px solid var(--g200);border-radius:var(--rl);padding:12px 14px;margin-bottom:10px;background:#fff}
+.dc.pend{border-color:#F09595;background:#FFF5F5}
+.dc.res{border-color:#9FE1CB;background:#F5FDF8}
+.ob{padding:6px 14px;border-radius:20px;font-size:11px;cursor:pointer;border:1px solid var(--g200);background:#fff;font-weight:600;margin:3px}
+.ob.ac{border-color:#9FE1CB;color:#0F6E56;background:var(--dgl)}
+.ob.co{border-color:#FAC775;color:var(--da);background:var(--dal)}
+.ob.de{border-color:#F09595;color:var(--dr);background:var(--drl)}
+.ob.ex{border-color:#2D3148;color:#fff;background:#2D3148}
+.ob.nc{border-color:#AFA9EC;color:var(--dp);background:var(--dpl)}
+.ob.sel{box-shadow:0 0 0 2px currentColor}
+.fb{border:1px solid var(--g200);border-radius:var(--rl);margin-bottom:9px;overflow:hidden}
+.fh{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;background:var(--g50);border-bottom:1px solid var(--g200)}
+.rr{display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid var(--g100)}
+.rr:last-child{border-bottom:none}
+.pbox{width:320px;text-align:center;padding:28px;background:#fff;border-radius:var(--rl)}
+.pinput{width:140px;text-align:center;font-size:22px;letter-spacing:10px;padding:9px;border-radius:var(--r);border:1px solid var(--g200);background:#fff;color:var(--g800)}
+.pinput:focus{outline:none;border-color:var(--db)}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--g50)}
+::-webkit-scrollbar-thumb{background:var(--g200);border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- PIN MODAL -->
+<div class="mbg" id="pin-screen" style="display:none">
+  <div class="pbox">
+    <i class="ti ti-lock" style="font-size:30px;color:var(--db);display:block;margin-bottom:12px"></i>
+    <div style="font-size:16px;font-weight:600;margin-bottom:5px">Acceso admin</div>
+    <div style="font-size:11px;color:var(--g600);margin-bottom:16px">PIN para cerrar semana y generar reporte</div>
+    <input class="pinput" type="password" id="pin-input" maxlength="4" placeholder="••••" oninput="chkPin()">
+    <div style="font-size:11px;color:var(--dr);margin-top:8px;min-height:16px" id="pin-err"></div>
+    <div style="margin-top:14px"><button class="btn" onclick="cm('pin-screen')">Cancelar</button></div>
+  </div>
+</div>
+
+<div class="app">
+<div style="border-radius:var(--rl);overflow:hidden;box-shadow:0 8px 24px rgba(0,87,255,.12)">
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="tl">
+    <div class="icon"><i class="ti ti-car" style="color:#fff;font-size:18px"></i></div>
+    <span>Directo · Gestor de flotas</span>
+  </div>
+  <div class="tr">
+    <div style="font-size:10px;color:rgba(255,255,255,.6)" id="sync-st"></div>
+    <div class="rol-pill" id="rol-pill" onclick="toggleRol()">
+      <i class="ti ti-user" style="font-size:13px"></i><span id="rol-lbl">Ejecutivo</span>
+    </div>
+    <button class="btn-top ghost" id="btn-al-top" onclick="goTab('alertas')" style="display:none">
+      <i class="ti ti-alert-triangle"></i><span id="cnt-al">0</span> alertas
+    </button>
+    <button class="btn-top white" id="btn-cierre" onclick="intentarCierre()">
+      <i class="ti ti-file-export"></i> Generar reporte
+    </button>
+  </div>
+</div>
+
+<!-- SEMANA BAR -->
+<div class="sbar">
+  <div style="display:flex;align-items:center;gap:12px">
+    <span style="font-weight:600;color:var(--dbd)" id="b-periodo">—</span>
+    <span style="color:var(--g600)" id="b-sem"></span>
+    <span id="b-pre" style="display:none"><span class="b me" style="font-size:8px">Pre-data activa</span></span>
+    <span id="b-corrop" style="display:none"><span class="b pu" style="font-size:8px">Corrección op. disponible</span></span>
+  </div>
+  <div id="b-dl" style="display:flex;align-items:center;gap:5px;color:var(--g600);font-size:11px">
+    <i class="ti ti-clock" style="font-size:13px"></i><span id="b-dl-txt">—</span>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="nav">
+  <button class="active" onclick="goTab('dashboard')" data-tab="dashboard"><i class="ti ti-layout-dashboard"></i> Dashboard</button>
+  <button onclick="goTab('padron')" data-tab="padron"><i class="ti ti-users"></i> Padrón</button>
+  <button onclick="goTab('permisos')" data-tab="permisos" id="nav-permisos"><i class="ti ti-clipboard-list"></i> Permisos <span class="dot"></span></button>
+  <button onclick="goTab('novedades')" data-tab="novedades"><i class="ti ti-user-plus"></i> Novedades</button>
+  <button onclick="goTab('plazas')" data-tab="plazas"><i class="ti ti-building-store"></i> Plazas</button>
+  <button onclick="goTab('alertas')" data-tab="alertas" id="nav-alertas"><i class="ti ti-alert-triangle"></i> Alertas <span class="dot"></span></button>
+  <button onclick="goTab('servicios')" data-tab="servicios" id="nav-servicios"><i class="ti ti-upload"></i> Servicios <span class="dot"></span></button>
+  <button onclick="goTab('reportes')" data-tab="reportes"><i class="ti ti-file-spreadsheet"></i> Reportes</button>
+  <button onclick="goTab('buscador')" data-tab="buscador"><i class="ti ti-search"></i> Buscador</button>
+  <button onclick="goTab('indicadores')" data-tab="indicadores"><i class="ti ti-chart-bar"></i> Indicadores</button>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+
+<!-- DASHBOARD -->
+<div id="tab-dashboard" class="tab active">
+  <div id="blk-d"></div>
+  <div class="cg c2" style="margin-bottom:14px">
+    <div style="border:1px solid var(--g200);border-radius:var(--rl);padding:14px">
+      <div style="font-size:10px;font-weight:600;text-transform:uppercase;color:var(--g600);margin-bottom:10px;letter-spacing:.5px">Estado financiero</div>
+      <div class="cg c4" style="margin-bottom:0">
+        <div class="mc g"><div class="ml">Activos</div><div class="mv" id="f-ac">—</div></div>
+        <div class="mc a"><div class="ml">Congelados</div><div class="mv" id="f-co">—</div></div>
+        <div class="mc r"><div class="ml">Desactivados</div><div class="mv" id="f-de">—</div></div>
+        <div class="mc gr"><div class="ml">Expulsados</div><div class="mv" id="f-ex">—</div></div>
+      </div>
+    </div>
+    <div style="border:1px solid var(--g200);border-radius:var(--rl);padding:14px">
+      <div style="font-size:10px;font-weight:600;text-transform:uppercase;color:var(--g600);margin-bottom:10px;letter-spacing:.5px">Estado operativo</div>
+      <div class="cg c4" style="margin-bottom:0">
+        <div class="mc g"><div class="ml">Activos</div><div class="mv" id="o-ac">—</div></div>
+        <div class="mc a"><div class="ml">Congelados</div><div class="mv" id="o-co">—</div></div>
+        <div class="mc r"><div class="ml">Desactivados</div><div class="mv" id="o-de">—</div></div>
+        <div class="mc gr"><div class="ml">Expulsados</div><div class="mv" id="o-ex">—</div></div>
+      </div>
+    </div>
+  </div>
+  <div id="al-fin-d"></div>
+  <div class="cg c2">
+    <div class="panel"><h4>Distribución por flota y subflota</h4><div class="bc" id="chart-flota"></div></div>
+    <div class="panel"><h4>Alertas operativas</h4><div id="al-op"></div></div>
+  </div>
+  <div class="cg c2">
+    <div class="panel"><h4>Permisos activos esta semana</h4><div id="perm-dash"></div></div>
+    <div class="panel"><h4>Motivos de salida (histórico)</h4><div class="bc" id="motivos-d"></div></div>
+  </div>
+  <div style="background:var(--dbl);border:1px solid #B5D4F4;border-radius:var(--rl);padding:10px 14px">
+    <div style="font-size:11px;font-weight:600;color:var(--dbd);margin-bottom:3px">
+      <i class="ti ti-building"></i> Flota propia — Financiero: FLOTA PROPIA · Operativo: por servicios
+    </div>
+    <div id="fp-res" style="font-size:11px;color:#185FA5"></div>
+  </div>
+</div>
+
+<!-- PADRON -->
+<div id="tab-padron" class="tab">
+  <div class="tbar">
+    <div class="sbox"><i class="ti ti-search" style="color:var(--db)"></i><input type="text" placeholder="Buscar móvil..." id="p-search" oninput="renderPadron()"></div>
+    <select class="fsel" id="p-flota" onchange="updSubsFlt();renderPadron()">
+      <option value="">Todas las flotas</option>
+      <option>AEROPUERTO</option><option>URBANO</option><option>AEROLINEA</option>
+      <option>JOCKEY</option><option>BELLAVISTA</option><option>FLOTA PROPIA</option>
+    </select>
+    <select class="fsel" id="p-sub" onchange="renderPadron()"><option value="">Todas las subflotas</option></select>
+    <select class="fsel" id="p-est" onchange="renderPadron()">
+      <option value="">Todos los estados</option><option>ACTIVO</option><option>CONGELADO</option>
+      <option>DESACTIVADO</option><option>EXPULSADO</option>
+    </select>
+    <span style="flex:1"></span>
+    <span style="font-size:10px;color:var(--g600)" id="p-cnt"></span>
+  </div>
+  <div class="tw"><table>
+    <thead><tr>
+      <th style="width:60px">Móvil</th><th style="width:100px">Flota</th>
+      <th style="width:80px">Subflota</th><th style="width:78px">Categoría</th>
+      <th style="width:90px">Financiero</th><th style="width:88px">Operativo</th>
+      <th>Obs.</th>
+      <th style="width:35px">W</th><th style="width:35px">K</th><th style="width:35px">S</th>
+      <th style="width:34px">Sem❄</th>
+    </tr></thead>
+    <tbody id="padron-tb"></tbody>
+  </table></div>
+</div>
+
+<!-- PERMISOS -->
+<div id="tab-permisos" class="tab">
+  <div class="tbar">
+    <button class="btn pri" onclick="openPermiso()"><i class="ti ti-plus"></i> Registrar permiso</button>
+    <span style="flex:1"></span>
+    <span style="font-size:10px;color:var(--g600)" id="perm-cnt"></span>
+  </div>
+  <div id="salud-sec"></div>
+  <div id="otros-tit" style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--g600);margin-bottom:8px"></div>
+  <div class="tw"><table>
+    <thead><tr>
+      <th style="width:60px">Móvil</th><th style="width:98px">Flota</th><th style="width:80px">Subflota</th>
+      <th style="width:112px">Tipo</th><th>Motivo</th>
+      <th style="width:78px">Inicio</th><th style="width:78px">Fin</th><th style="width:38px">Días</th><th style="width:40px"></th>
+    </tr></thead>
+    <tbody id="perm-tb"></tbody>
+  </table></div>
+</div>
+
+<!-- NOVEDADES -->
+<div id="tab-novedades" class="tab">
+  <div class="tbar">
+    <button class="btn pri" onclick="openNov('nuevo')"><i class="ti ti-user-plus"></i> Nuevo ingreso</button>
+    <button class="btn" onclick="openNov('reactivacion')"><i class="ti ti-refresh"></i> Reactivación</button>
+    <button class="btn" onclick="openNov('cambio_flota')"><i class="ti ti-arrows-exchange"></i> Cambio de flota</button>
+    <button class="btn wa" onclick="openNov('baja_semana')"><i class="ti ti-logout"></i> Baja mitad semana</button>
+    <button class="btn ko" onclick="openNov('desactivar')"><i class="ti ti-user-off"></i> Desactivar / Expulsar</button>
+  </div>
+  <div id="pend-prox" style="margin-bottom:10px"></div>
+  <div class="tw"><table>
+    <thead><tr>
+      <th style="width:60px">Móvil</th><th style="width:93px">Tipo</th>
+      <th style="width:115px">Flota / Sub</th><th style="width:115px">Anterior</th>
+      <th>Observación / Motivo</th><th style="width:78px">Fecha</th>
+    </tr></thead>
+    <tbody id="nov-tb"></tbody>
+  </table></div>
+</div>
+
+<!-- PLAZAS -->
+<div id="tab-plazas" class="tab">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px">
+    <div>
+      <div style="font-size:13px;font-weight:600;color:var(--g800);margin-bottom:3px">Registro Plazas — Jockey y Bellavista</div>
+      <div style="font-size:11px;color:var(--g600)">Sin cruce de servicios. El counter reporta altas y bajas por mensaje.</div>
+    </div>
+    <div style="display:flex;gap:7px">
+      <button class="btn ok" onclick="openPlazas('JOCKEY','ingreso')"><i class="ti ti-plus"></i> Alta Jockey</button>
+      <button class="btn ok" onclick="openPlazas('BELLAVISTA','ingreso')"><i class="ti ti-plus"></i> Alta Bellavista</button>
+      <button class="btn ko" onclick="openPlazas('','baja')"><i class="ti ti-minus"></i> Baja</button>
+    </div>
+  </div>
+  <div class="cg c2">
+    <div><div class="sec"><i class="ti ti-building-store"></i>Jockey Plaza</div><div id="pl-jk"></div></div>
+    <div><div class="sec"><i class="ti ti-building-store"></i>Bellavista</div><div id="pl-bv"></div></div>
+  </div>
+  <div class="sec"><i class="ti ti-history"></i>Movimientos esta semana</div>
+  <div class="tw"><table>
+    <thead><tr>
+      <th style="width:70px">Móvil</th><th style="width:110px">Base</th>
+      <th style="width:88px">Tipo</th><th style="width:88px">Financiero</th>
+      <th style="width:88px">Operativo</th><th>Obs.</th>
+    </tr></thead>
+    <tbody id="pl-tb"></tbody>
+  </table></div>
+</div>
+
+<!-- ALERTAS -->
+<div id="tab-alertas" class="tab">
+  <div style="margin-bottom:11px">
+    <div style="font-size:13px;font-weight:600;color:var(--g800);margin-bottom:3px">Centro de alertas — decisiones obligatorias</div>
+    <div style="font-size:11px;color:var(--g600)">Todas las alertas bloqueantes deben resolverse antes de generar el reporte.</div>
+  </div>
+  <div id="al-banner"></div>
+  <div id="al-cont"></div>
+</div>
+
+<!-- SERVICIOS -->
+<div id="tab-servicios" class="tab">
+  <div class="ibox in" style="margin-bottom:13px">
+    <i class="ti ti-info-circle"></i> Pre-data durante la semana · Data final el lunes antes de 12pm ·
+    Corrección operativa el lunes en la noche. <strong>Plazas no participa en el cruce.</strong>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+    <div>
+      <div style="font-size:11px;font-weight:600;margin-bottom:5px">Wari</div>
+      <div class="uz pre" onclick="simCarga('wari','pre')" id="z-wari-pre" style="padding:12px;margin-bottom:5px">
+        <i class="ti ti-database" style="font-size:20px;display:block;margin-bottom:4px;opacity:.5"></i>
+        <span style="font-size:10px" id="l-wari-pre">Pre-data</span>
+      </div>
+      <div class="uz done" onclick="simCarga('wari','fin')" id="z-wari-fin" style="padding:12px">
+        <i class="ti ti-upload" style="font-size:20px;display:block;margin-bottom:4px;opacity:.5"></i>
+        <span style="font-size:10px" id="l-wari-fin">Data final</span>
+      </div>
+      <div class="pg"><div class="pgf" id="pg-wari"></div></div>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:600;margin-bottom:5px">Kusi</div>
+      <div class="uz pre" onclick="simCarga('kusi','pre')" id="z-kusi-pre" style="padding:12px;margin-bottom:5px">
+        <i class="ti ti-database" style="font-size:20px;display:block;margin-bottom:4px;opacity:.5"></i>
+        <span style="font-size:10px" id="l-kusi-pre">Pre-data</span>
+      </div>
+      <div class="uz done" onclick="simCarga('kusi','fin')" id="z-kusi-fin" style="padding:12px">
+        <i class="ti ti-upload" style="font-size:20px;display:block;margin-bottom:4px;opacity:.5"></i>
+        <span style="font-size:10px" id="l-kusi-fin">Data final</span>
+      </div>
+      <div class="pg"><div class="pgf" id="pg-kusi"></div></div>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:600;margin-bottom:5px">Sky / Latam / Jetsmart</div>
+      <div class="uz pre" onclick="simCarga('sky','pre')" id="z-sky-pre" style="padding:12px;margin-bottom:5px">
+        <i class="ti ti-database" style="font-size:20px;display:block;margin-bottom:4px;opacity:.5"></i>
+        <span style="font-size:10px" id="l-sky-pre">Pre-data</span>
+      </div>
+      <div class="uz done" onclick="simCarga('sky','fin')" id="z-sky-fin" style="padding:12px">
+        <i class="ti ti-upload" style="font-size:20px;display:block;margin-bottom:4px;opacity:.5"></i>
+        <span style="font-size:10px" id="l-sky-fin">Data final</span>
+      </div>
+      <div class="pg"><div class="pgf" id="pg-sky"></div></div>
+    </div>
+  </div>
+  <div id="op-corr" style="display:none;margin-bottom:16px">
+    <div class="sec"><i class="ti ti-edit" style="color:var(--dp)"></i>Corrección operativa — lunes en la noche</div>
+    <div class="ibox pu"><i class="ti ti-info-circle"></i> Solo modifica el estado operativo. El financiero ya fue enviado y no se toca.</div>
+    <button class="btn pu" onclick="corrOpLunes()"><i class="ti ti-upload"></i> Subir data limpia para corregir operativo</button>
+  </div>
+  <div id="diff-res"></div>
+</div>
+
+<!-- REPORTES -->
+<div id="tab-reportes" class="tab">
+  <div style="font-size:13px;font-weight:600;color:var(--g800);margin-bottom:4px">Reportes y exportación</div>
+  <div style="font-size:11px;color:var(--g600);margin-bottom:16px">Descarga el reporte en CSV o importa data histórica.</div>
+  <div class="sec"><i class="ti ti-download"></i>Exportar reporte</div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+    <div onclick="expReporte('fin')" style="border:2px solid var(--db);border-radius:var(--rl);padding:16px;text-align:center;cursor:pointer;background:var(--dbl)">
+      <i class="ti ti-building-bank" style="font-size:24px;color:var(--db);display:block;margin-bottom:7px"></i>
+      <div style="font-size:12px;font-weight:600;color:var(--dbd)">Para Finanzas</div>
+      <div style="font-size:10px;color:var(--g600);margin-top:3px">Móvil · Flota · Subflota · Categoría · Estado · Permiso · Fechas · Días</div>
+    </div>
+    <div onclick="expReporte('op')" style="border:1px solid var(--g200);border-radius:var(--rl);padding:16px;text-align:center;cursor:pointer">
+      <i class="ti ti-car" style="font-size:24px;color:var(--g400);display:block;margin-bottom:7px"></i>
+      <div style="font-size:12px;font-weight:600;color:var(--g800)">Para Operaciones</div>
+      <div style="font-size:10px;color:var(--g600);margin-top:3px">Estado operativo · Servicios reales en pista</div>
+    </div>
+    <div onclick="expReporte('completo')" style="border:1px solid #AFA9EC;border-radius:var(--rl);padding:16px;text-align:center;cursor:pointer;background:var(--dpl)">
+      <i class="ti ti-table-export" style="font-size:24px;color:var(--dp);display:block;margin-bottom:7px"></i>
+      <div style="font-size:12px;font-weight:600;color:var(--dp)">Reporte completo</div>
+      <div style="font-size:10px;color:var(--g600);margin-top:3px">Ambos estados + categorías + permisos históricos</div>
+    </div>
+  </div>
+  <div class="panel" style="margin-bottom:16px">
+    <h4>Filtros de exportación</h4>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div><div style="font-size:10px;color:var(--g600);margin-bottom:3px">Semana</div>
+        <select class="fsel" id="exp-sem"><option value="actual">Semana actual</option></select></div>
+      <div><div style="font-size:10px;color:var(--g600);margin-bottom:3px">Flota</div>
+        <select class="fsel" id="exp-flt"><option value="all">Todas</option><option>AEROPUERTO</option><option>URBANO</option><option>AEROLINEA</option><option>JOCKEY</option><option>BELLAVISTA</option></select></div>
+      <div><div style="font-size:10px;color:var(--g600);margin-bottom:3px">N° liquidación</div>
+        <input type="text" class="fsel" id="exp-liq" placeholder="Ej: LIQ-2025-22" style="width:170px"></div>
+    </div>
+  </div>
+  <div class="sec"><i class="ti ti-history"></i>Historial de reportes generados</div>
+  <div class="tw"><table>
+    <thead><tr>
+      <th style="width:80px">Semana</th><th style="width:140px">Período</th>
+      <th style="width:120px">Tipo</th><th style="width:140px">Generado el</th>
+      <th style="width:130px">Liquidación</th><th>Acciones</th>
+    </tr></thead>
+    <tbody id="rep-tb"></tbody>
+  </table></div>
+  <div class="sec" style="margin-top:16px"><i class="ti ti-upload"></i>Importar data histórica</div>
+  <div class="uz" onclick="alert('Próximamente: sube un Excel con el formato DATA_FLOTAS para importar conductores o historial.')" style="max-width:420px">
+    <i class="ti ti-file-spreadsheet" style="font-size:26px;display:block;margin-bottom:7px;opacity:.4"></i>
+    <div style="font-size:12px;font-weight:600;margin-bottom:3px">Subir Excel de padrón o historial</div>
+    <div style="font-size:10px;color:var(--g400)">Formato: DATA_FLOTAS con hojas por flota</div>
+  </div>
+</div>
+
+<!-- BUSCADOR -->
+<div id="tab-buscador" class="tab">
+  <div style="margin-bottom:16px">
+    <div style="font-size:13px;font-weight:600;color:var(--g800);margin-bottom:3px">Historial de conductor</div>
+    <div style="font-size:11px;color:var(--g600);margin-bottom:11px">
+      Ve estados, subflota, categoría, tarifas, permisos, novedades y motivos semana a semana.
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div class="sbox" style="max-width:320px;border-color:var(--db)">
+        <i class="ti ti-search" style="color:var(--db)"></i>
+        <input type="text" placeholder="Número de móvil..." id="bus-input" oninput="buscarConductor()" style="font-size:13px">
+      </div>
+      <span style="font-size:11px;color:var(--g600)" id="bus-hint">Ingresa al menos 2 caracteres</span>
+    </div>
+  </div>
+  <div id="bus-res"></div>
+</div>
+
+<!-- INDICADORES -->
+<div id="tab-indicadores" class="tab">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;flex-wrap:wrap;gap:8px">
+    <div style="font-size:13px;font-weight:600;color:var(--g800)">Indicadores gerenciales</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select class="fsel" id="ind-sem" onchange="renderInd()"><option value="all">Todas las semanas</option></select>
+      <select class="fsel" id="ind-flt" onchange="updSubsInd();renderInd()">
+        <option value="all">Todas las flotas</option>
+        <option>AEROPUERTO</option><option>URBANO</option><option>AEROLINEA</option><option>JOCKEY</option><option>BELLAVISTA</option>
+      </select>
+      <select class="fsel" id="ind-sub" onchange="renderInd()"><option value="all">Todas las subflotas</option></select>
+      <select class="fsel" id="ind-tipo" onchange="renderInd()">
+        <option value="fin">Estado financiero</option><option value="op">Estado operativo</option>
+      </select>
+    </div>
+  </div>
+  <div id="ind-cont"></div>
+</div>
+
+</div><!-- /content -->
+</div><!-- /app wrapper -->
+</div><!-- /app -->
+
+<!-- MODALES -->
+<div class="mbg" id="m-permiso" style="display:none">
+  <div class="modal">
+    <h3><i class="ti ti-clipboard-list" style="margin-right:6px;color:var(--db)"></i>Registrar permiso</h3>
+    <div class="fg"><label>Móvil</label><input type="text" id="mp-movil" placeholder="Ej: 205" oninput="onMovilP()"></div>
+    <div id="mp-info" style="font-size:11px;color:var(--g600);margin-bottom:9px;min-height:15px"></div>
+    <div class="fg"><label>Tipo de permiso</label>
+      <select id="mp-tipo" onchange="onTipoP()">
+        <option>Salud / reposo médico</option><option>Choque / accidente</option>
+        <option>Auto en taller</option><option>Viaje de emergencia</option>
+        <option>Sin acceso LAP</option><option>Fuerza mayor</option><option>Otro</option>
+      </select>
+    </div>
+    <div id="av-choque" class="ibox ch" style="display:none"><i class="ti ti-alert-triangle"></i> <strong>Alerta financiera:</strong> se registrará si tiene 0 servicios.</div>
+    <div id="av-salud" class="ibox sa" style="display:none"><i class="ti ti-heart-rate"></i> <strong>Salud:</strong> seguimiento semanal con alerta si no hace servicios.</div>
+    <div id="av-mem" class="ibox pu" style="display:none"><i class="ti ti-mail"></i> <strong>Membresía urbana:</strong> recuerda enviar correo a Finanzas.</div>
+    <div class="fg"><label>Observación / diagnóstico</label><textarea id="mp-obs" placeholder="Describe el motivo..."></textarea></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label>Fecha inicio</label><input type="date" id="mp-ini"></div>
+      <div class="fg"><label>Fecha fin</label><input type="date" id="mp-fin" oninput="calcD()"></div>
+    </div>
+    <div style="font-size:11px;color:var(--g600);margin-bottom:7px" id="mp-dias"></div>
+    <div class="ma">
+      <button class="btn" onclick="cm('m-permiso')">Cancelar</button>
+      <button class="btn pri" onclick="guardarPermiso()">Guardar permiso</button>
+    </div>
+  </div>
+</div>
+
+<div class="mbg" id="m-novedad" style="display:none">
+  <div class="modal">
+    <h3 id="nov-tit">Novedad</h3>
+    <input type="hidden" id="nov-tipo">
+    <div class="fg"><label>Móvil</label><input type="text" id="nov-movil" placeholder="Ej: 3450" oninput="onMovilN()"></div>
+    <div id="nov-actual" style="font-size:11px;color:var(--g600);margin-bottom:8px;min-height:15px"></div>
+    <div id="av-baja" class="ibox sa" style="display:none"><i class="ti ti-info-circle"></i> <strong>Baja mitad semana:</strong> Fin=CONGELADO esta semana, Op=ACTIVO si hizo servicios. Próxima → DESACTIVADO.</div>
+    <div id="av-prox" class="ibox pu" style="display:none"><i class="ti ti-calendar"></i> <strong>Aeropuerto:</strong> Si es próxima semana, indica la fecha de inicio exacta.</div>
+    <div class="fg"><label>Flota</label>
+      <select id="nov-flota" onchange="updSubsNov()">
+        <option>AEROPUERTO</option><option>URBANO</option><option>AEROLINEA</option>
+        <option>JOCKEY</option><option>BELLAVISTA</option><option>FLOTA PROPIA</option>
+      </select>
+    </div>
+    <div class="fg"><label>Subflota</label><select id="nov-sub"></select></div>
+    <div class="fg" id="nov-cat-g" style="display:none">
+      <label>Categoría vehículo (solo Aeropuerto)</label>
+      <select id="nov-cat"><option>Lite</option><option>Confort</option><option>Confort XL</option><option>XL</option><option>Van</option></select>
+    </div>
+    <div class="fg" id="nov-ant-g" style="display:none"><label>Flota anterior</label>
+      <select id="nov-fant" onchange="updSubsNovAnt()">
+        <option>AEROPUERTO</option><option>URBANO</option><option>AEROLINEA</option>
+        <option>JOCKEY</option><option>BELLAVISTA</option><option>FLOTA PROPIA</option>
+      </select>
+    </div>
+    <div class="fg" id="nov-sant-g" style="display:none"><label>Subflota anterior</label><select id="nov-sant"></select></div>
+    <div class="fg" id="nov-mot-g" style="display:none">
+      <label>Motivo de salida</label>
+      <select id="nov-mot">
+        <option>Problemas personales</option><option>Salud</option><option>Renovación de vehículo</option>
+        <option>Accidente</option><option>No es rentable</option><option>Ganancias bajas</option>
+        <option>Baja temporada</option><option>Maltrato</option><option>Mal comportamiento</option><option>Otro</option>
+      </select>
+    </div>
+    <div class="fg" id="nov-fecha-g" style="display:none">
+      <label>Fecha de inicio (si es próxima semana)</label>
+      <input type="date" id="nov-fecha">
+    </div>
+    <div class="fg"><label>Cliente</label><select id="nov-cli"><option>AFILIADO</option><option>FLOTA PROPIA</option></select></div>
+    <div class="fg"><label>Observación</label><textarea id="nov-obs" placeholder="Motivo o detalle..."></textarea></div>
+    <div class="ma">
+      <button class="btn" onclick="cm('m-novedad')">Cancelar</button>
+      <button class="btn pri" onclick="guardarNovedad()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="mbg" id="m-plazas" style="display:none">
+  <div class="modal">
+    <h3 id="pl-tit">Registro Plazas</h3>
+    <input type="hidden" id="pl-tipo">
+    <div class="fg"><label>Base</label>
+      <select id="pl-base"><option value="JOCKEY">Jockey Plaza</option><option value="BELLAVISTA">Bellavista</option></select>
+    </div>
+    <div class="fg"><label>Móviles (uno por línea o por coma)</label>
+      <textarea id="pl-moviles" style="min-height:78px" placeholder="301&#10;302&#10;450"></textarea>
+    </div>
+    <div class="fg"><label>Observación</label>
+      <input type="text" id="pl-obs" placeholder="Ej: Reporte counter sem 22">
+    </div>
+    <div id="pl-ibox" class="ibox in"></div>
+    <div class="ma">
+      <button class="btn" onclick="cm('m-plazas')">Cancelar</button>
+      <button class="btn pri" onclick="guardarPlazas()">Registrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="mbg" id="m-nota" style="display:none">
+  <div class="modal" style="width:390px">
+    <h3><i class="ti ti-notes" style="margin-right:6px;color:var(--da)"></i>Nota de seguimiento salud</h3>
+    <input type="hidden" id="nota-movil">
+    <div class="fg"><label>Resultado de llamada / validación</label>
+      <textarea id="nota-txt" style="min-height:65px" placeholder="Ej: Conductor confirmó reposo..."></textarea>
+    </div>
+    <div class="ma">
+      <button class="btn" onclick="cm('m-nota')">Cancelar</button>
+      <button class="btn wa" onclick="guardarNota()">Guardar nota</button>
+    </div>
+  </div>
+</div>
+
+<div class="mbg" id="m-resolver" style="display:none">
+  <div class="modal" style="width:520px">
+    <h3 id="res-tit"></h3>
+    <div id="res-ctx" style="margin-bottom:12px"></div>
+    <div id="res-campos"></div>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:11px" id="res-opts"></div>
+    <div id="res-extra" style="margin-top:11px"></div>
+    <div class="ma">
+      <button class="btn" onclick="cm('m-resolver')">Cancelar</button>
+      <button class="btn pri" onclick="confirmarDec()">Confirmar decisión</button>
+    </div>
+  </div>
+</div>
+
+<div class="mbg" id="m-revision" style="display:none">
+  <div class="modal wide" style="max-height:88vh;overflow-y:auto">
+    <h3><i class="ti ti-clipboard-check" style="margin-right:6px;color:var(--db)"></i>Revisión final antes de enviar</h3>
+    <div id="rev-p1">
+      <div class="ibox ok" style="margin-bottom:11px"><i class="ti ti-check"></i> Todas las alertas resueltas. Revisa el resumen por flota.</div>
+      <div id="rev-res"></div>
+      <div class="ma">
+        <button class="btn" onclick="cm('m-revision')">Cancelar</button>
+        <button class="btn pri" onclick="irP2()">Revisar conductor por conductor <i class="ti ti-arrow-right"></i></button>
+      </div>
+    </div>
+    <div id="rev-p2" style="display:none">
+      <div class="ibox in" style="margin-bottom:11px"><strong>Paso final</strong> — Financiero editable · Operativo automático por servicios.</div>
+      <div id="rev-det"></div>
+      <div class="ma">
+        <button class="btn" onclick="volverP1()"><i class="ti ti-arrow-left"></i> Volver</button>
+        <button class="btn pri" onclick="abrirExport()">Seleccionar exportación <i class="ti ti-arrow-right"></i></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mbg" id="m-export" style="display:none">
+  <div class="modal" style="width:420px">
+    <h3><i class="ti ti-file-spreadsheet" style="margin-right:6px;color:var(--dg)"></i>Exportar y cerrar semana</h3>
+    <p style="font-size:11px;color:var(--g600);margin-bottom:14px">Selecciona qué estado exportar.</p>
+    <div class="cg c2" style="margin-bottom:12px">
+      <div onclick="selExp('fin')" id="ex-fin" style="border:2px solid var(--db);border-radius:var(--rl);padding:14px;text-align:center;cursor:pointer;background:var(--dbl)">
+        <i class="ti ti-building-bank" style="font-size:22px;color:var(--db);display:block;margin-bottom:6px"></i>
+        <div style="font-size:12px;font-weight:600;color:var(--dbd)">Para Finanzas</div>
+        <div style="font-size:10px;color:var(--g600);margin-top:2px">Estado financiero</div>
+      </div>
+      <div onclick="selExp('op')" id="ex-op" style="border:1px solid var(--g200);border-radius:var(--rl);padding:14px;text-align:center;cursor:pointer">
+        <i class="ti ti-car" style="font-size:22px;color:var(--g400);display:block;margin-bottom:6px"></i>
+        <div style="font-size:12px;font-weight:600;color:var(--g800)">Para Operaciones</div>
+        <div style="font-size:10px;color:var(--g600);margin-top:2px">Estado operativo</div>
+      </div>
+    </div>
+    <div style="background:var(--g50);border-radius:var(--r);padding:10px 13px;margin-bottom:11px;font-size:11px;color:var(--g600)">
+      <strong style="color:var(--g800)">Columnas:</strong> Móvil · Flota · Subflota · Categoría · Tarifa · Estado · Detalle · Inicio permiso · Fin · Días
+    </div>
+    <div class="fg"><label>Número de liquidación</label><input type="text" id="ex-liq" placeholder="Ej: LIQ-2025-22"></div>
+    <div id="ex-sel-txt" style="font-size:11px;color:var(--db);margin-bottom:9px">✓ Para Finanzas seleccionado</div>
+    <div class="ma">
+      <button class="btn" onclick="cm('m-export')">Cancelar</button>
+      <button class="btn ok" onclick="confirmarCierre()"><i class="ti ti-download"></i> Confirmar y descargar</button>
+    </div>
+  </div>
+</div>
+
+<div class="mbg" id="m-no-admin" style="display:none">
+  <div class="modal" style="width:330px;text-align:center">
+    <i class="ti ti-lock" style="font-size:28px;color:var(--db);display:block;margin-bottom:11px"></i>
+    <div style="font-size:14px;font-weight:600;margin-bottom:6px">Solo el admin puede cerrar la semana</div>
+    <p style="font-size:11px;color:var(--g600);margin-bottom:16px">Ingresa el PIN de administrador para continuar.</p>
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button class="btn" onclick="cm('m-no-admin')">Cerrar</button>
+      <button class="btn pri" onclick="cm('m-no-admin');abrirPin()">Ingresar PIN</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =============================================
+// CONFIGURACIÓN SUPABASE
+// =============================================
+const SURL='https://xajcaoeefsbajcwihuvf.supabase.co';
+const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhhamNhb2VlZnNiYWpjd2lodXZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgyOTA3NTgsImV4cCI6MjA2Mzg2Njc1OH0.9VEFpHbBRmHlAepCcNlwGz-e5GpPJt5kT0FKVuJJpYo';
+const sb=supabase.createClient(SURL,SKEY);
+
+// =============================================
+// CONSTANTES
+// =============================================
+const ADMIN_PIN='1234';
+const PLAZAS=['JOCKEY','BELLAVISTA'];
+const AUTO_DESACT=['URBANO','AEROLINEA'];
+const SUBFLOTAS={
+  'AEROPUERTO':['Diurno','Nocturno','Regular','Van'],
+  'URBANO':['Partner','Regular','Membresía'],
+  'AEROLINEA':['Latam','Sky','Jetsmart'],
+  'JOCKEY':['—'],'BELLAVISTA':['—'],'FLOTA PROPIA':['—']
+};
+const TARIFAS={'Lite':265,'Confort':240,'Confort XL':235,'XL':240,'Van':240};
+const PORC={'Van':22,'default':27.9};
+const MOTIVOS=['Problemas personales','Salud','Renovación de vehículo','Accidente','No es rentable','Ganancias bajas','Baja temporada','Maltrato','Mal comportamiento','Otro'];
+
+// =============================================
+// ESTADO LOCAL
+// =============================================
+let S={
+  semana:22, semanaInicio:'',
+  conductores:[], permisos:[], saludSeg:[], novedades:[],
+  plazasMovs:[], historial:[], rol:'ejecutivo',
+  alertasDec:{}, pendientesProx:[],
+  servicios:{wari:false,kusi:false,sky:false},
+  predata:{wari:false,kusi:false,sky:false}
+};
+let estadosRev={}, expTipo='fin', svcsPre=[], alertaActual=null, opcSel=null;
+
+// =============================================
+// SUPABASE - CARGA Y GUARDADO
+// =============================================
+function syncMsg(m){
+  document.getElementById('sync-st').textContent=m;
+  if(m.startsWith('✓'))setTimeout(()=>document.getElementById('sync-st').textContent='',3000);
+}
+
+async function loadFromDB(){
+  syncMsg('⟳ Cargando...');
+  try{
+    const[{data:conds},{data:perms},{data:sals},{data:novs},{data:pls},{data:hist},{data:cfg}]=await Promise.all([
+      sb.from('conductores').select('*').eq('activo',true).order('movil'),
+      sb.from('permisos').select('*').eq('activo',true),
+      sb.from('seguimiento_salud').select('*,notas_salud(*)').eq('activo',true),
+      sb.from('novedades').select('*').eq('activo',true),
+      sb.from('plazas_movimientos').select('*').order('created_at',{ascending:false}).limit(100),
+      sb.from('historial_semanal').select('*').order('numero_semana',{ascending:false}).limit(500),
+      sb.from('configuracion').select('*')
+    ]);
+    if(conds)S.conductores=conds.map(mapC);
+    if(perms)S.permisos=perms;
+    if(sals)S.saludSeg=sals.map(s=>({...s,notas:s.notas_salud||[]}));
+    if(novs)S.novedades=novs;
+    if(pls)S.plazasMovs=pls;
+    if(hist)S.historial=hist;
+    if(cfg){
+      const sem=cfg.find(c=>c.clave==='semana_actual');
+      const ini=cfg.find(c=>c.clave==='semana_inicio');
+      if(sem)S.semana=parseInt(sem.valor)||22;
+      if(ini&&ini.valor)S.semanaInicio=ini.valor;
+    }
+    if(!S.semanaInicio)S.semanaInicio=getLunes(new Date()).toISOString().split('T')[0];
+    if(!S.conductores.length)initDemo();
+    syncMsg('✓ Sincronizado');
+  }catch(e){
+    console.error('Error cargando datos:',e);
+    syncMsg('⚠ Modo offline');
+    initDemo();
+  }
+  render();initSelects();
+}
+
+function mapC(r){
+  return{
+    id:r.id,movil:r.movil,flota:r.flota,sub:r.subflota||'—',cat:r.categoria_vehiculo||'',
+    cliente:r.cliente||'AFILIADO',esMem:r.es_membresia||false,
+    estFin:r.estado_fin||'ACTIVO',estOp:r.estado_op||'ACTIVO',
+    obs:r.observaciones||'',motivoSalida:r.motivo_salida||null,
+    sc:r.semanas_congelado||0,bajaSem:r.baja_semana||false,
+    esNuevo:r.es_nuevo||false,semSinSvc:r.semanas_sin_servicio||0,
+    fechaIniSvc:r.fecha_inicio_servicio||null,
+    wari:r.wari||0,kusi:r.kusi||0,sky:r.sky||0
+  };
+}
+
+async function saveC(c){
+  try{
+    const d={movil:c.movil,flota:c.flota,subflota:c.sub,categoria_vehiculo:c.cat||null,
+      cliente:c.cliente,es_membresia:c.esMem,estado_fin:c.estFin,estado_op:calcEstOp(c),
+      observaciones:c.obs,motivo_salida:c.motivoSalida,semanas_congelado:c.sc,
+      baja_semana:c.bajaSem,es_nuevo:c.esNuevo,semanas_sin_servicio:c.semSinSvc||0,
+      fecha_inicio_servicio:c.fechaIniSvc||null,wari:c.wari||0,kusi:c.kusi||0,sky:c.sky||0,activo:true};
+    if(c.id)await sb.from('conductores').update(d).eq('id',c.id);
+    else{const{data:r}=await sb.from('conductores').insert(d).select().single();if(r)c.id=r.id;}
+    syncMsg('✓ Guardado');
+  }catch(e){console.error('saveC',e);}
+}
+
+async function saveP(p){
+  try{
+    await sb.from('permisos').insert({
+      movil:p.movil,tipo:p.tipo,observaciones:p.obs,
+      fecha_inicio:p.inicio,fecha_fin:p.fin,dias:p.dias,
+      semana_numero:S.semana,activo:true
+    });
+    syncMsg('✓ Permiso guardado');
+  }catch(e){console.error('saveP',e);}
+}
+
+async function saveNov(n){
+  try{
+    await sb.from('novedades').insert({
+      movil:n.movil,tipo:n.tipo,flota:n.flota,subflota:n.sub,
+      flota_anterior:n.flotaAnt,subflota_anterior:n.subAnt,
+      motivo:n.motivo,observaciones:n.obs,
+      fecha_registro:n.fecha,semana_numero:S.semana,activo:true
+    });
+  }catch(e){console.error('saveNov',e);}
+}
+
+async function saveCfg(k,v){
+  try{await sb.from('configuracion').upsert({clave:k,valor:v,updated_at:new Date().toISOString()},{onConflict:'clave'});}
+  catch(e){console.error('saveCfg',e);}
+}
+
+async function saveHistorial(){
+  try{
+    const rows=S.conductores.filter(c=>c.estFin!=='PENDIENTE_PROX').map(c=>{
+      const p=S.permisos.find(x=>x.movil==c.movil);
+      const ss=S.saludSeg.find(x=>x.movil==c.movil);
+      return{
+        numero_semana:S.semana,movil:c.movil,flota:c.flota,subflota:c.sub,
+        categoria_vehiculo:c.cat||null,estado_fin:c.estFin,estado_op:calcEstOp(c),
+        observaciones:c.obs,motivo_salida:c.motivoSalida,
+        wari:c.wari||0,kusi:c.kusi||0,sky:c.sky||0,
+        permiso_tipo:p?.tipo||null,permiso_inicio:p?.inicio||p?.fecha_inicio||null,
+        permiso_fin:p?.fin||p?.fecha_fin||null,permiso_dias:p?.dias||null,
+        es_nuevo:c.esNuevo||false,es_membresia:c.esMem||false
+      };
+    });
+    if(rows.length)await sb.from('historial_semanal').insert(rows);
+    syncMsg('✓ Historial guardado');
+  }catch(e){console.error('saveHistorial',e);}
+}
+
+// =============================================
+// DEMO DATA
+// =============================================
+function initDemo(){
+  S.semanaInicio=getLunes(new Date()).toISOString().split('T')[0];
+  S.conductores=[
+    {movil:'205',flota:'AEROPUERTO',sub:'Van',cat:'Van',cliente:'AFILIADO',estFin:'ACTIVO',obs:'',wari:25,kusi:23,sky:0,sc:0,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'230',flota:'AEROPUERTO',sub:'Diurno',cat:'Lite',cliente:'AFILIADO',estFin:'CONGELADO',obs:'Sin acceso LAP',wari:9,kusi:0,sky:0,sc:1,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'838',flota:'AEROPUERTO',sub:'Regular',cat:'Confort',cliente:'AFILIADO',estFin:'CONGELADO',obs:'Sin unidad',wari:0,kusi:0,sky:0,sc:2,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'550',flota:'AEROPUERTO',sub:'Nocturno',cat:'XL',cliente:'AFILIADO',estFin:'CONGELADO',obs:'Servicio de prueba',wari:0,kusi:0,sky:0,sc:0,bajaSem:false,esMem:false,esNuevo:true,semSinSvc:2,motivoSalida:null},
+    {movil:'301',flota:'URBANO',sub:'Membresía',cat:'',cliente:'AFILIADO',estFin:'ACTIVO',obs:'',wari:8,kusi:5,sky:0,sc:0,bajaSem:false,esMem:true,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'302',flota:'URBANO',sub:'Membresía',cat:'',cliente:'AFILIADO',estFin:'CONGELADO',obs:'Choque - taller',wari:0,kusi:0,sky:0,sc:1,bajaSem:false,esMem:true,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'405',flota:'URBANO',sub:'Membresía',cat:'',cliente:'AFILIADO',estFin:'CONGELADO',obs:'Salud: fractura tobillo',wari:0,kusi:0,sky:0,sc:2,bajaSem:false,esMem:true,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'515',flota:'URBANO',sub:'Partner',cat:'',cliente:'AFILIADO',estFin:'CONGELADO',obs:'Baja miércoles',wari:3,kusi:2,sky:0,sc:0,bajaSem:true,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'307',flota:'URBANO',sub:'Regular',cat:'',cliente:'AFILIADO',estFin:'ACTIVO',obs:'',wari:3,kusi:4,sky:0,sc:0,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'127',flota:'AEROLINEA',sub:'Latam',cat:'',cliente:'AFILIADO',estFin:'ACTIVO',obs:'',wari:2,kusi:0,sky:1,sc:0,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'629',flota:'AEROLINEA',sub:'Sky',cat:'',cliente:'AFILIADO',estFin:'CONGELADO',obs:'',wari:0,kusi:0,sky:0,sc:2,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'136',flota:'JOCKEY',sub:'—',cat:'',cliente:'AFILIADO',estFin:'ACTIVO',obs:'',wari:0,kusi:0,sky:0,sc:0,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'401',flota:'BELLAVISTA',sub:'—',cat:'',cliente:'AFILIADO',estFin:'ACTIVO',obs:'',wari:0,kusi:0,sky:0,sc:0,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'2941',flota:'FLOTA PROPIA',sub:'—',cat:'',cliente:'FLOTA PROPIA',estFin:'FLOTA PROPIA',obs:'',wari:28,kusi:0,sky:0,sc:0,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
+  ];
+  const hoy=new Date().toISOString().split('T')[0];
+  S.permisos=[
+    {movil:'230',tipo:'Sin acceso LAP',obs:'Papeleta cautelar',inicio:hoy,fin:hoy,dias:1},
+    {movil:'302',tipo:'Choque / accidente',obs:'Colisión - auto en taller',inicio:hoy,fin:hoy,dias:7},
+  ];
+  S.saludSeg=[{movil:'405',flota:'URBANO',sub:'Membresía',inicio:'2025-05-12',finEst:'2025-06-06',obs:'Fractura de tobillo',semana_inicio:20,notas:[
+    {sem:20,texto:'Confirmó fractura. Enviará certificado.',fecha:'13/05'},
+    {sem:21,texto:'Sigue en reposo.',fecha:'20/05'}
+  ]}];
+  S.plazasMovs=[
+    {movil:'136',base:'JOCKEY',tipo:'ingreso',observaciones:'Alta counter sem 20',semana_numero:S.semana},
+    {movil:'401',base:'BELLAVISTA',tipo:'ingreso',observaciones:'Alta counter sem 19',semana_numero:S.semana},
+  ];
+  S.historial=[
+    {numero_semana:20,movil:'205',flota:'AEROPUERTO',subflota:'Van',categoria_vehiculo:'Van',estado_fin:'ACTIVO',estado_op:'ACTIVO',wari:20,kusi:18,sky:0,observaciones:'',permiso_tipo:null,permiso_inicio:null,permiso_fin:null,permiso_dias:null},
+    {numero_semana:21,movil:'205',flota:'AEROPUERTO',subflota:'Van',categoria_vehiculo:'Van',estado_fin:'ACTIVO',estado_op:'ACTIVO',wari:25,kusi:23,sky:0,observaciones:'',permiso_tipo:null,permiso_inicio:null,permiso_fin:null,permiso_dias:null},
+    {numero_semana:21,movil:'230',flota:'AEROPUERTO',subflota:'Diurno',categoria_vehiculo:'Lite',estado_fin:'CONGELADO',estado_op:'ACTIVO',wari:9,kusi:0,sky:0,observaciones:'Sin acceso LAP',permiso_tipo:'Sin acceso LAP',permiso_inicio:hoy,permiso_fin:hoy,permiso_dias:1},
+  ];
+}
+
+// =============================================
+// HELPERS
+// =============================================
+function svcs(c){return(c.wari||0)+(c.kusi||0)+(c.sky||0);}
+function getLunes(d){const dt=new Date(d);const day=dt.getDay();const diff=dt.getDate()-day+(day===0?-6:1);return new Date(dt.setDate(diff));}
+function fmtF(d){try{return new Date(d+'T12:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'short'});}catch(e){return d||'—';}}
+function getPeriodo(ls){const l=new Date(ls+'T12:00:00');const v=new Date(l);v.setDate(l.getDate()+6);return`${fmtF(ls)} — ${fmtF(v.toISOString().split('T')[0])}`;}
+function dD(i,f){return Math.max(1,Math.round((new Date(f)-new Date(i))/86400000)+1);}
+function getFlota(m){const c=S.conductores.find(x=>x.movil==m);return c?c.flota:'';}
+function getSub(m){const c=S.conductores.find(x=>x.movil==m);return c?c.sub:'';}
+function getCat(m){const c=S.conductores.find(x=>x.movil==m);return c?c.cat:'';}
+function getTarifa(cat){if(!cat)return'';const mem=TARIFAS[cat]||0;const p=cat==='Van'?22:27.9;return`S/${mem} + ${p}%`;}
+
+function calcEstOp(c){
+  if(c.flota==='FLOTA PROPIA')return svcs(c)>0?'ACTIVO':'CONGELADO';
+  if(PLAZAS.includes(c.flota))return['DESACTIVADO','EXPULSADO'].includes(c.estFin)?c.estFin:'ACTIVO';
+  if(['DESACTIVADO','EXPULSADO'].includes(c.estFin))return c.estFin;
+  if(c.bajaSem)return svcs(c)>0?'ACTIVO':'CONGELADO';
+  return svcs(c)>0?'ACTIVO':'CONGELADO';
+}
+
+function calcEstFinProp(c){
+  if(c.flota==='FLOTA PROPIA')return'FLOTA PROPIA';
+  if(PLAZAS.includes(c.flota))return c.estFin;
+  if(['DESACTIVADO','EXPULSADO'].includes(c.estFin))return c.estFin;
+  const p=S.permisos.find(x=>x.movil==c.movil);
+  const ss=S.saludSeg.find(x=>x.movil==c.movil);
+  const total=svcs(c);
+  if(c.flota==='AEROPUERTO')return p||ss?'CONGELADO':total>0?'ACTIVO':'CONGELADO';
+  if(ss)return'CONGELADO';
+  if(c.bajaSem)return'CONGELADO';
+  if(p)return c.esMem&&total>0?'ACTIVO':'CONGELADO';
+  if(total>0)return'ACTIVO';
+  if(AUTO_DESACT.includes(c.flota)&&c.sc>=2)return'DESACTIVADO';
+  return'CONGELADO';
+}
+
+// =============================================
+// ALERTAS
+// =============================================
+function genAlertas(){
+  const al=[];
+  S.conductores.forEach(c=>{
+    if(c.flota==='FLOTA PROPIA'||PLAZAS.includes(c.flota))return;
+    if(['DESACTIVADO','EXPULSADO'].includes(c.estFin))return;
+    const p=S.permisos.find(x=>x.movil==c.movil);
+    const ss=S.saludSeg.find(x=>x.movil==c.movil);
+    const total=svcs(c);
+
+    // Nuevos Aeropuerto sin servicios (semanas 1,2 info / sem 3 bloqueante)
+    if(c.esNuevo&&c.flota==='AEROPUERTO'&&total===0){
+      const nsv=c.semSinSvc||0;
+      if(nsv>=2&&!S.alertasDec[`nsv3_${c.movil}`])
+        al.push({id:`nsv3_${c.movil}`,tipo:'nsv3',nivel:'bloq',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:`3 semanas sin servicios desde ingreso — proceder a desactivar o justificar`});
+      else if(nsv===1&&!S.alertasDec[`nsv2_${c.movil}`])
+        al.push({id:`nsv2_${c.movil}`,tipo:'nsv2',nivel:'info',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:`2 semanas sin servicios desde ingreso — hacer seguimiento`});
+      else if(nsv===0&&!S.alertasDec[`nsv1_${c.movil}`])
+        al.push({id:`nsv1_${c.movil}`,tipo:'nsv1',nivel:'info',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:`Conductor nuevo sin servicios esta semana`});
+    }
+    // Nuevo Aeropuerto con servicios sin fecha confirmada
+    if(c.esNuevo&&c.flota==='AEROPUERTO'&&total>0&&!c.fechaIniSvc&&!S.alertasDec[`naero_${c.movil}`])
+      al.push({id:`naero_${c.movil}`,tipo:'nuevo_aero',nivel:'bloq',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:`Nuevo con ${total} servicio${total!==1?'s':''}. Verifica fecha de inicio de membresía.`});
+    // Choque + 0 servicios
+    if(p&&p.tipo==='Choque / accidente'&&total===0&&!S.alertasDec[`chq_${c.movil}`])
+      al.push({id:`chq_${c.movil}`,tipo:'choque',nivel:'bloq',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:'Choque registrado con 0 servicios — define estado financiero'});
+    // Membresía congelada sin permiso
+    if(c.esMem&&c.estFin==='CONGELADO'&&!p&&!ss&&!c.bajaSem&&!S.alertasDec[`mem_${c.movil}`])
+      al.push({id:`mem_${c.movil}`,tipo:'mem_sin_perm',nivel:'bloq',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:'Congelado sin permiso — membresía activa, riesgo de cobro incorrecto'});
+    // Membresía 0 servicios sin permiso
+    if(c.esMem&&total===0&&!p&&!ss&&!c.bajaSem&&!S.alertasDec[`m0_${c.movil}`])
+      al.push({id:`m0_${c.movil}`,tipo:'mem_0svc',nivel:'bloq',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:'0 servicios sin justificación — membresía activa'});
+    // Salud 0 servicios
+    if(ss&&total===0&&c.esMem&&!S.alertasDec[`sal_${c.movil}`])
+      al.push({id:`sal_${c.movil}`,tipo:'salud_0',nivel:'bloq',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:`Permiso salud activo + 0 servicios esta semana — validar`});
+    // 2+ semanas congelado
+    if(c.sc>=2&&c.estFin==='CONGELADO'&&!ss&&AUTO_DESACT.includes(c.flota)&&!S.alertasDec[`2s_${c.movil}`])
+      al.push({id:`2s_${c.movil}`,tipo:'2sem',nivel:'bloq',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:`${c.sc} semanas congelado — confirma DESACTIVADO o justifica continuidad`});
+  });
+  return al;
+}
+
+function alPend(){return genAlertas().filter(a=>!S.alertasDec[a.id]&&a.nivel==='bloq');}
+function hayBloqueo(){return alPend().length>0;}
+
+// =============================================
+// BANNER Y SEMANA
+// =============================================
+function updateBanner(){
+  document.getElementById('b-periodo').textContent=getPeriodo(S.semanaInicio);
+  document.getElementById('b-sem').textContent=`· Semana ${S.semana}`;
+  const lc=new Date(S.semanaInicio+'T00:00:00');lc.setDate(lc.getDate()+7);lc.setHours(12,0,0,0);
+  const now=new Date();const diff=lc-now;
+  const el=document.getElementById('b-dl');const txt=document.getElementById('b-dl-txt');
+  if(diff<=0){el.style.color='var(--dg)';txt.textContent='Cierre disponible — enviar antes de las 12pm';}
+  else{const d=Math.floor(diff/86400000),h=Math.floor((diff%86400000)/3600000),m=Math.floor((diff%3600000)/60000);
+    el.style.color=d===0&&h<3?'var(--da)':'var(--g600)';
+    txt.textContent=`Cierre lunes 12pm · ${d>0?d+'d ':''} ${h}h ${m}m`;}
+  document.getElementById('btn-cierre').disabled=S.rol!=='admin'&&diff>0;
+  document.getElementById('b-pre').style.display=(S.predata.wari||S.predata.kusi||S.predata.sky)?'inline':'none';
+  const ln=new Date(lc);ln.setHours(23,59,0,0);
+  const corrOp=now>lc&&now<ln;
+  document.getElementById('b-corrop').style.display=corrOp?'inline':'none';
+  document.getElementById('op-corr').style.display=corrOp?'block':'none';
+}
+
+// =============================================
+// RENDER PRINCIPAL
+// =============================================
+function render(){
+  updateBanner();updMetrics();renderChartFlota();renderAlOp();renderPermDash();renderMotivosDash();renderFP();
+  renderPadron();renderPermisos();renderNovedades();renderPlazas();renderAlertas();renderPendProx();
+  updNavDots();updBtns();renderHistRep();
+}
+
+function updMetrics(){
+  const nfp=c=>c.flota!=='FLOTA PROPIA';
+  ['ACTIVO','CONGELADO','DESACTIVADO','EXPULSADO'].forEach((e,i)=>{
+    document.getElementById(['f-ac','f-co','f-de','f-ex'][i]).textContent=S.conductores.filter(c=>nfp(c)&&c.estFin===e).length;
+    document.getElementById(['o-ac','o-co','o-de','o-ex'][i]).textContent=S.conductores.filter(c=>nfp(c)&&calcEstOp(c)===e).length;
+  });
+}
+
+function renderChartFlota(){
+  const el=document.getElementById('chart-flota');el.innerHTML='';
+  const flotas=['AEROPUERTO','URBANO','AEROLINEA','JOCKEY','BELLAVISTA'];
+  const cols={'AEROPUERTO':'#0057FF','URBANO':'#534AB7','AEROLINEA':'#BA7517','JOCKEY':'#1D9E75','BELLAVISTA':'#A32D2D'};
+  const max=Math.max(...flotas.map(f=>S.conductores.filter(c=>c.flota===f).length),1);
+  flotas.forEach(f=>{
+    const cds=S.conductores.filter(c=>c.flota===f);if(!cds.length)return;
+    const act=cds.filter(c=>c.estFin==='ACTIVO').length;const col=cols[f];
+    el.innerHTML+=`<div class="br"><span class="bl">${f}</span><div class="bt"><div class="bf" style="width:${Math.round(cds.length/max*100)}%;background:${col}"></div></div><span class="bv">${act}/${cds.length}</span></div>`;
+    (SUBFLOTAS[f]||[]).filter(s=>s!=='—').forEach(s=>{
+      const sub=cds.filter(c=>c.sub===s);if(!sub.length)return;
+      el.innerHTML+=`<div class="br" style="opacity:.7"><span class="bl" style="font-size:9px;color:var(--g400)"> └ ${s}</span><div class="bt" style="height:8px"><div class="bf" style="width:${Math.round(sub.length/max*100)}%;background:${col}88"></div></div><span class="bv" style="font-size:9px">${sub.filter(c=>c.estFin==='ACTIVO').length}/${sub.length}</span></div>`;
+    });
+  });
+}
+
+function renderAlOp(){
+  const el=document.getElementById('al-op');const ops=[];
+  S.saludSeg.forEach(s=>{const c=S.conductores.find(x=>x.movil==s.movil);if(c&&svcs(c)===0)ops.push({t:'w',m:`Móvil ${s.movil} — salud desde ${s.inicio||s.fecha_inicio}, 0 servicios`});});
+  S.conductores.forEach(c=>{
+    if(c.flota==='FLOTA PROPIA'||PLAZAS.includes(c.flota)||S.saludSeg.find(x=>x.movil==c.movil))return;
+    if(c.sc>=2&&c.estFin==='CONGELADO')ops.push({t:'d',m:`Móvil ${c.movil} (${c.flota}·${c.sub}) — ${c.sc} sem congelado`});
+    if(c.esNuevo&&c.flota==='AEROPUERTO'&&svcs(c)===0){
+      const nsv=c.semSinSvc||0;
+      ops.push({t:nsv>=2?'d':'w',m:`Móvil ${c.movil} — nuevo Aero sin servicios${nsv>0?` (${nsv+1} sem)`:''}`});
+    }
+  });
+  el.innerHTML=ops.length?ops.map(o=>`<div style="font-size:11px;color:${o.t==='d'?'var(--dr)':'var(--da)'};margin-bottom:4px;display:flex;gap:4px"><i class="ti ti-alert-circle" style="flex-shrink:0;margin-top:1px"></i>${o.m}</div>`).join(''):'<span style="font-size:11px;color:var(--g400)">Sin alertas operativas</span>';
+}
+
+function renderPermDash(){
+  const el=document.getElementById('perm-dash');
+  const total=S.permisos.length+S.saludSeg.length;
+  if(!total){el.innerHTML='<span style="font-size:11px;color:var(--g400)">Sin permisos esta semana</span>';return;}
+  const tipos={};
+  S.permisos.forEach(p=>{tipos[p.tipo]=(tipos[p.tipo]||0)+1;});
+  if(S.saludSeg.length)tipos['Salud / reposo médico']=(tipos['Salud / reposo médico']||0)+S.saludSeg.length;
+  el.innerHTML=`<div style="font-size:12px;font-weight:500;margin-bottom:6px">${total} permiso${total!==1?'s':''} activo${total!==1?'s':''}</div>`+
+  Object.entries(tipos).map(([t,n])=>`<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:var(--g600)">${t}</span><span class="chip">${n}</span></div>`).join('');
+}
+
+function renderMotivosDash(){
+  const el=document.getElementById('motivos-d');
+  const desact=S.conductores.filter(c=>['DESACTIVADO','EXPULSADO'].includes(c.estFin)&&c.motivoSalida);
+  const histDes=S.historial.filter(h=>['DESACTIVADO','EXPULSADO'].includes(h.estado_fin)&&h.motivo_salida).map(h=>({motivoSalida:h.motivo_salida}));
+  const todos=[...desact,...histDes];
+  if(!todos.length){el.innerHTML='<span style="font-size:11px;color:var(--g400)">Sin datos de salida aún</span>';return;}
+  const mots={};todos.forEach(c=>{mots[c.motivoSalida]=(mots[c.motivoSalida]||0)+1;});
+  const max=Math.max(...Object.values(mots),1);
+  el.innerHTML=Object.entries(mots).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([m,n])=>`<div class="br"><span class="bl" style="font-size:9px">${m.substring(0,16)}</span><div class="bt"><div class="bf" style="width:${Math.round(n/max*100)}%;background:var(--dr)88"></div></div><span class="bv">${n}</span></div>`).join('');
+}
+
+function renderFP(){
+  const fp=S.conductores.filter(c=>c.flota==='FLOTA PROPIA');
+  const actOp=fp.filter(c=>calcEstOp(c)==='ACTIVO').length;
+  document.getElementById('fp-res').textContent=fp.length?`${fp.length} unidades · Operativo: ${actOp} activas en pista · Sin desactivación automática`:'Sin conductores de flota propia';
+}
+
+function updNavDots(){
+  const pend=alPend().length;
+  document.getElementById('nav-alertas').classList.toggle('has-alert',pend>0);
+  const s0=S.saludSeg.filter(s=>{const c=S.conductores.find(x=>x.movil==s.movil);return c&&svcs(c)===0;});
+  document.getElementById('nav-permisos').classList.toggle('has-alert',s0.length>0);
+  document.getElementById('nav-servicios').classList.toggle('has-alert',!(S.servicios.wari&&S.servicios.kusi&&S.servicios.sky));
+}
+
+function updBtns(){
+  const pend=alPend().length;
+  const btn=document.getElementById('btn-al-top');
+  if(pend>0){btn.style.display='inline-flex';document.getElementById('cnt-al').textContent=pend;}
+  else btn.style.display='none';
+  const bb=document.getElementById('blk-d');
+  if(pend>0)bb.innerHTML=`<div class="blk"><i class="ti ti-lock" style="font-size:22px;color:var(--dr);flex-shrink:0"></i><div style="flex:1"><div style="font-size:12px;font-weight:500;color:var(--dr)">${pend} alerta${pend>1?'s':''} bloqueante${pend>1?'s':''} pendiente${pend>1?'s':''} — reporte bloqueado</div></div><button class="btn sm ko" onclick="goTab('alertas')">Ir a Alertas</button></div>`;
+  else bb.innerHTML='';
+}
+
+// =============================================
+// PADRÓN
+// =============================================
+function updSubsFlt(){
+  const fl=document.getElementById('p-flota').value;
+  const sel=document.getElementById('p-sub');
+  sel.innerHTML='<option value="">Todas las subflotas</option>';
+  if(fl&&SUBFLOTAS[fl])(SUBFLOTAS[fl]||[]).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);});
+}
+
+function renderPadron(){
+  const search=(document.getElementById('p-search').value||'').toLowerCase();
+  const fl=document.getElementById('p-flota').value;
+  const sub=document.getElementById('p-sub').value;
+  const est=document.getElementById('p-est').value;
+  let data=S.conductores.filter(c=>c.estFin!=='PENDIENTE_PROX');
+  if(search)data=data.filter(c=>c.movil.toLowerCase().includes(search));
+  if(fl)data=data.filter(c=>c.flota===fl);
+  if(sub)data=data.filter(c=>c.sub===sub);
+  if(est)data=data.filter(c=>c.estFin===est);
+  document.getElementById('p-cnt').textContent=`${data.length} conductores`;
+  const alM=new Set(alPend().map(a=>a.movil));
+  const tbody=document.getElementById('padron-tb');
+  if(!data.length){tbody.innerHTML=`<tr><td colspan="11"><div class="empty"><i class="ti ti-users"></i>Sin resultados</div></td></tr>`;return;}
+  tbody.innerHTML=data.map(c=>{
+    const al=alM.has(c.movil);
+    const esFP=c.flota==='FLOTA PROPIA';
+    const isPl=PLAZAS.includes(c.flota);
+    const ss=S.saludSeg.find(x=>x.movil==c.movil);
+    const estOp=calcEstOp(c);
+    const tarifa=c.flota==='AEROPUERTO'&&c.cat?getTarifa(c.cat):'';
+    return `<tr class="${al?'al':''}">
+      <td><a href="#" onclick="verHist('${c.movil}');return false" style="color:var(--db);font-weight:600;text-decoration:none">${c.movil}</a>${al?' <i class="ti ti-alert-triangle" style="color:var(--dr);font-size:9px"></i>':''}</td>
+      <td style="font-size:10px">${c.flota}${c.esMem?'<span class="b me" style="font-size:7px;margin-left:2px">M</span>':''}</td>
+      <td><span class="b sb">${c.sub||'—'}</span></td>
+      <td>${c.cat?`<span class="b ca" style="font-size:8px">${c.cat}</span>${tarifa?`<div style="font-size:8px;color:var(--g400)">${tarifa}</div>`:''}`:''}</td>
+      <td>
+        <span class="b ${esFP?'fp':c.estFin.toLowerCase()}">${esFP?'FP':c.estFin}</span>
+        ${ss?'<span class="b sa" style="font-size:7px;margin-left:1px">S</span>':''}
+        ${c.bajaSem?'<span class="b co" style="font-size:7px;margin-left:1px">baja</span>':''}
+        ${c.esNuevo?'<span class="b nv" style="font-size:7px;margin-left:1px">nuevo</span>':''}
+      </td>
+      <td><span class="b ${estOp.toLowerCase()}">${estOp}</span></td>
+      <td style="font-size:10px;color:var(--g600)">${c.obs||'—'}</td>
+      <td style="text-align:center">${c.wari||0}</td>
+      <td style="text-align:center">${c.kusi||0}</td>
+      <td style="text-align:center">${c.sky||0}</td>
+      <td style="text-align:center">${c.sc>0?`<span class="b co">${c.sc}</span>`:'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// =============================================
+// PERMISOS
+// =============================================
+function renderPermisos(){
+  const otros=S.permisos.filter(p=>p.tipo!=='Salud / reposo médico');
+  document.getElementById('perm-cnt').textContent=`${S.permisos.length+S.saludSeg.length} permisos activos`;
+  const se=document.getElementById('salud-sec');
+  if(S.saludSeg.length){
+    se.innerHTML=`<div class="sec" style="margin-bottom:8px"><i class="ti ti-heart-rate" style="color:var(--da)"></i>Seguimiento de salud (${S.saludSeg.length})</div>`+
+    S.saludSeg.map((s,i)=>{
+      const c=S.conductores.find(x=>x.movil==s.movil);
+      const total=c?svcs(c):0;const sin0=total===0;
+      return `<div class="sc"><div class="sh">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:13px;font-weight:600;color:var(--da)">Móvil ${s.movil}</span>
+          <span class="b sb">${s.sub||s.subflota||'—'}</span>
+          ${sin0?'<span class="b de" style="font-size:8px">0 svc</span>':''}
+        </div>
+        <div style="display:flex;gap:5px;align-items:center">
+          <span style="font-size:10px;color:var(--da)">Desde sem ${s.semana_inicio||s.semIni||'—'}</span>
+          <button class="btn sm" onclick="openNota('${s.movil}')"><i class="ti ti-notes"></i> Nota</button>
+          <button class="btn sm" onclick="editSalud(${i})"><i class="ti ti-edit"></i></button>
+          <button class="btn sm ko" onclick="cerrarSalud(${i})"><i class="ti ti-x"></i></button>
+        </div>
+      </div>
+      <div class="sb2">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:7px;font-size:11px">
+          <span><strong>Diagnóstico:</strong> ${s.obs||s.observaciones||'—'}</span>
+          <span><strong>Servicios:</strong> <span style="color:${sin0?'var(--dr)':'var(--dg)'};font-weight:600">${total}</span></span>
+          <span><strong>Fin est.:</strong> ${s.finEst||s.fecha_fin_estimada||'—'}</span>
+          <span><strong>Sem. cong.:</strong> ${c?c.sc:0}</span>
+        </div>
+        ${sin0?`<div class="ibox ch" style="margin-bottom:7px;font-size:11px">⚠ 0 servicios — llamada de validación pendiente</div>`:''}
+        <div>${(s.notas||[]).length?(s.notas||[]).map(n=>`<div class="ni"><span class="ns">Sem ${n.sem||n.semana_numero||'—'}</span><div><div style="font-size:11px">${n.texto||n.txt||''}</div><div style="font-size:9px;color:var(--g400)">${n.fecha||''}</div></div></div>`).join(''):'<div style="font-size:11px;color:var(--g400)">Sin notas aún.</div>'}</div>
+      </div></div>`;
+    }).join('');
+  }else se.innerHTML='';
+  document.getElementById('otros-tit').textContent=otros.length?`Otros permisos (${otros.length})`:'';
+  const tbody=document.getElementById('perm-tb');
+  if(!otros.length){tbody.innerHTML=`<tr><td colspan="9"><div class="empty" style="padding:14px"><i class="ti ti-clipboard-list"></i>Sin otros permisos</div></td></tr>`;return;}
+  tbody.innerHTML=otros.map(p=>{
+    const fl=getFlota(p.movil);const sub=getSub(p.movil);const esC=p.tipo==='Choque / accidente';
+    return `<tr class="${esC?'al':''}">
+      <td><a href="#" onclick="verHist('${p.movil}');return false" style="color:var(--db);font-weight:600;text-decoration:none">${p.movil}</a></td>
+      <td style="font-size:10px">${fl||'—'}</td>
+      <td><span class="b sb">${sub||'—'}</span></td>
+      <td><span class="b co" style="font-size:8px">${p.tipo}</span></td>
+      <td style="font-size:10px;color:var(--g600)">${p.obs||p.observaciones||''}</td>
+      <td style="font-size:10px">${p.inicio||p.fecha_inicio||'—'}</td>
+      <td style="font-size:10px">${p.fin||p.fecha_fin||'—'}</td>
+      <td style="text-align:center">${p.dias||'—'}</td>
+      <td><button class="btn sm ko" onclick="elimPerm('${p.movil}')"><i class="ti ti-trash"></i></button></td>
+    </tr>`;
+  }).join('');
+}
+
+// =============================================
+// NOVEDADES
+// =============================================
+function renderNovedades(){
+  const tbody=document.getElementById('nov-tb');
+  if(!S.novedades.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><i class="ti ti-user-plus"></i>Sin novedades esta semana</div></td></tr>`;return;}
+  tbody.innerHTML=S.novedades.map(n=>`<tr>
+    <td><a href="#" onclick="verHist('${n.movil}');return false" style="color:var(--db);font-weight:600;text-decoration:none">${n.movil}</a></td>
+    <td><span class="b ${n.tipo==='desactivar'?'ex':'nv'}" style="font-size:8px">${n.tipo.replace(/_/g,' ')}</span></td>
+    <td style="font-size:10px">${n.flota||''} <span class="b sb">${n.sub||n.subflota||'—'}</span></td>
+    <td style="font-size:10px">${n.flotaAnt||n.flota_anterior||'—'} ${(n.subAnt||n.subflota_anterior)?`<span class="b sb">${n.subAnt||n.subflota_anterior}</span>`:''}</td>
+    <td style="font-size:10px;color:var(--g600)">${n.motivo?`[${n.motivo}] `:''}${n.obs||n.observaciones||'—'}</td>
+    <td style="font-size:10px">${n.fecha||n.fecha_registro||'—'}</td>
+  </tr>`).join('');
+}
+
+function renderPendProx(){
+  const el=document.getElementById('pend-prox');
+  const pend=S.conductores.filter(c=>c.estFin==='PENDIENTE_PROX');
+  if(!pend.length){el.innerHTML='';return;}
+  el.innerHTML=`<div class="ibox pu"><i class="ti ti-calendar-event" style="margin-right:5px"></i><strong>${pend.length} conductor${pend.length>1?'es':''} pendiente${pend.length>1?'s':''} para la próxima semana:</strong> ${pend.map(c=>`<span class="b sb" style="margin-left:4px">${c.movil} · ${c.flota}·${c.sub}</span>`).join(' ')}</div>`;
+}
+
+// =============================================
+// PLAZAS
+// =============================================
+function renderPlazas(){
+  ['jk','bv'].forEach((id,i)=>{
+    const flota=['JOCKEY','BELLAVISTA'][i];
+    const cds=S.conductores.filter(c=>c.flota===flota);
+    const act=cds.filter(c=>c.estFin==='ACTIVO');
+    const el=document.getElementById('pl-'+id);
+    el.innerHTML=`<div style="display:flex;gap:6px;margin-bottom:8px"><span class="chip">${cds.length} total</span><span style="font-size:10px;color:var(--dg)">${act.length} activos</span></div>
+    ${act.length?`<div style="display:flex;flex-wrap:wrap;gap:5px">${act.map(c=>`<span style="font-size:11px;padding:3px 9px;border-radius:20px;background:var(--dgl);border:1px solid #9FE1CB;color:#0F6E56;cursor:pointer" onclick="verHist('${c.movil}')">${c.movil}</span>`).join('')}</div>`:'<div style="font-size:11px;color:var(--g400)">Sin conductores activos</div>'}`;
+  });
+  const tbody=document.getElementById('pl-tb');
+  const movs=S.plazasMovs.filter(m=>(m.semana_numero||m.semana)===S.semana);
+  if(!movs.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty" style="padding:14px"><i class="ti ti-building-store"></i>Sin movimientos esta semana</div></td></tr>`;return;}
+  tbody.innerHTML=movs.map(m=>{
+    const c=S.conductores.find(x=>x.movil==m.movil);
+    const ef=c?c.estFin:'—';const eo=c?calcEstOp(c):'—';
+    return `<tr>
+      <td style="font-weight:600;color:var(--db)">${m.movil}</td>
+      <td><span class="b pl">${m.base}</span></td>
+      <td><span class="b ${m.tipo==='ingreso'?'nv':'de'}">${m.tipo}</span></td>
+      <td><span class="b ${ef.toLowerCase()}">${ef}</span></td>
+      <td><span class="b ${eo.toLowerCase()}">${eo}</span></td>
+      <td style="font-size:10px;color:var(--g600)">${m.obs||m.observaciones||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// =============================================
+// ALERTAS TAB
+// =============================================
+function renderAlertas(){
+  const alertas=genAlertas();
+  const pend=alertas.filter(a=>!S.alertasDec[a.id]&&a.nivel==='bloq');
+  const info=alertas.filter(a=>!S.alertasDec[a.id]&&a.nivel==='info');
+  const res=alertas.filter(a=>S.alertasDec[a.id]);
+  const banner=document.getElementById('al-banner');
+  const el=document.getElementById('al-cont');
+  if(pend.length)
+    banner.innerHTML=`<div class="blk" style="margin-bottom:12px"><i class="ti ti-lock" style="font-size:20px;color:var(--dr);flex-shrink:0"></i><div><div style="font-size:12px;font-weight:500;color:var(--dr)">${pend.length} alerta${pend.length>1?'s':''} bloqueante${pend.length>1?'s':''} — reporte bloqueado hasta resolverlas todas</div></div></div>`;
+  else
+    banner.innerHTML=`<div style="background:var(--dgl);border:1px solid #9FE1CB;border-radius:var(--rl);padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:8px"><i class="ti ti-check" style="font-size:18px;color:#0F6E56"></i><div style="font-size:12px;font-weight:500;color:#0F6E56">Todas las alertas bloqueantes resueltas — reporte habilitado</div></div>`;
+  el.innerHTML='';
+  if(pend.length){
+    el.innerHTML+=`<div class="sec"><i class="ti ti-alert-triangle" style="color:var(--dr)"></i>Bloqueantes — resolver antes de exportar (${pend.length})</div>`;
+    pend.forEach(a=>{
+      el.innerHTML+=`<div class="dc pend"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+        <div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:2px">Móvil ${a.movil} · ${a.flota} <span class="b sb">${a.sub}</span>${a.cat?` <span class="b ca">${a.cat}</span>`:''}</div>
+          <div style="font-size:11px;color:var(--g600)">${a.msg}</div>
+        </div>
+        <button class="btn sm pri" onclick="openResolver('${a.id}')"><i class="ti ti-edit"></i> Resolver</button>
+      </div></div>`;
+    });
+  }
+  if(info.length){
+    el.innerHTML+=`<div class="sec" style="margin-top:${pend.length?'14px':'0'}"><i class="ti ti-info-circle" style="color:var(--da)"></i>Informativas — seguimiento (${info.length})</div>`;
+    info.forEach(a=>{
+      el.innerHTML+=`<div class="dc" style="border-color:#FAC775;background:var(--dal)22"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+        <div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:2px">Móvil ${a.movil} · ${a.flota} <span class="b sb">${a.sub}</span></div>
+          <div style="font-size:11px;color:var(--g600)">${a.msg}</div>
+        </div>
+        <button class="btn sm wa" onclick="S.alertasDec['${a.id}']={estado:'VISTO',ts:Date.now()};renderAlertas()"><i class="ti ti-check"></i> Visto</button>
+      </div></div>`;
+    });
+  }
+  if(res.length){
+    el.innerHTML+=`<div class="sec" style="margin-top:${(pend.length||info.length)?'14px':'0'}"><i class="ti ti-check" style="color:var(--dg)"></i>Resueltas esta semana (${res.length})</div>`;
+    res.forEach(a=>{
+      const dec=S.alertasDec[a.id];
+      el.innerHTML+=`<div class="dc res"><div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;font-weight:600">Móvil ${a.movil}</span>
+          <span class="b sb">${a.flota}·${a.sub}</span>
+          <span style="font-size:11px;color:var(--g600)">${a.msg.substring(0,50)}...</span>
+        </div>
+        <div style="display:flex;gap:5px">
+          <span class="b ${(dec.estado||'activo').toLowerCase()}" style="font-size:8px">${dec.estado||'—'}</span>
+          <button class="btn sm" onclick="openResolver('${a.id}')"><i class="ti ti-edit"></i></button>
+        </div>
+      </div></div>`;
+    });
+  }
+  if(!alertas.length)el.innerHTML=`<div class="empty"><i class="ti ti-check"></i>No hay alertas esta semana</div>`;
+}
+
+function openResolver(aid){
+  const alertas=genAlertas();const a=alertas.find(x=>x.id===aid);if(!a)return;
+  alertaActual=a;opcSel=null;
+  const c=S.conductores.find(x=>x.movil==a.movil);
+  const p=S.permisos.find(x=>x.movil==a.movil);
+  const ss=S.saludSeg.find(x=>x.movil==a.movil);
+  const tarifa=a.cat?`· ${getTarifa(a.cat)}`:'';
+  document.getElementById('res-tit').innerHTML=`<i class="ti ti-alert-triangle" style="margin-right:6px;color:var(--da)"></i>Resolver — Móvil ${a.movil} · ${a.flota} <span class="b sb">${a.sub}</span>${a.cat?` <span class="b ca">${a.cat}</span>`:''} ${tarifa}`;
+  document.getElementById('res-ctx').innerHTML=`<div style="background:var(--g50);border-radius:var(--r);padding:10px 12px;font-size:11px;margin-bottom:10px"><div style="display:flex;gap:12px;flex-wrap:wrap">
+    <span><strong>Flota:</strong> ${a.flota}</span><span><strong>Sub:</strong> ${a.sub}</span>
+    ${a.cat?`<span><strong>Categoría:</strong> ${a.cat} · ${getTarifa(a.cat)}</span>`:''}
+    <span><strong>Servicios:</strong> ${c?svcs(c):0}</span>
+    <span><strong>Estado actual:</strong> ${c?c.estFin:'—'}</span>
+    ${p?`<span><strong>Permiso:</strong> ${p.tipo}</span>`:''}
+    ${ss?`<span><strong>Salud desde:</strong> ${ss.inicio||ss.fecha_inicio}</span>`:''}
+    ${c&&c.sc>0?`<span><strong>Sem. cong.:</strong> ${c.sc}</span>`:''}
+  </div></div><div style="font-size:12px;color:var(--g600);margin-bottom:8px">${a.msg}</div>`;
+  let campos='', opts='';
+  if(a.tipo==='nuevo_aero'){
+    campos=`<div class="fg"><label>¿Es servicio de prueba (no válido)?</label>
+      <select id="res-prueba" onchange="togFechaIni()">
+        <option value="no">No — servicio válido</option>
+        <option value="si">Sí — no considerar esta semana</option>
+      </select></div>
+    <div id="res-fecha-g" class="fg"><label>Fecha desde la que se cobra membresía</label>
+      <input type="date" id="res-fecha">
+      <div style="font-size:10px;color:var(--g600);margin-top:3px">Los días anteriores = permiso automático (sin cobro)</div>
+    </div>`;
+    opts='<button class="ob co" onclick="selOp(this,\'CONGELADO\')">❄️ CONGELADO</button>';
+  } else if(a.tipo==='nsv3'){
+    opts=`<button class="ob de" onclick="selOp(this,'DESACTIVADO')">🔴 DESACTIVADO</button>
+          <button class="ob nc" onclick="selOp(this,'NO_CONSIDERAR')">⏸ Mantener con justificación</button>`;
+  } else {
+    opts=`<button class="ob ac" onclick="selOp(this,'ACTIVO')">✅ ACTIVO</button>
+          <button class="ob co" onclick="selOp(this,'CONGELADO')">❄️ CONGELADO</button>
+          <button class="ob de" onclick="selOp(this,'DESACTIVADO')">🔴 DESACTIVADO</button>
+          <button class="ob ex" onclick="selOp(this,'EXPULSADO')">⛔ EXPULSADO</button>
+          <button class="ob nc" onclick="selOp(this,'NO_CONSIDERAR')">⏸ No considerar</button>`;
+  }
+  document.getElementById('res-campos').innerHTML=campos;
+  document.getElementById('res-opts').innerHTML=opts;
+  document.getElementById('res-extra').innerHTML='';
+  const dec=S.alertasDec[aid];
+  if(dec){const btn=document.querySelector(`.ob.${dec.estado?.toLowerCase()}`);if(btn)btn.classList.add('sel');opcSel=dec.estado;}
+  document.getElementById('m-resolver').style.display='flex';
+}
+
+function selOp(btn,opc){
+  document.querySelectorAll('.ob').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');opcSel=opc;
+  const extra=document.getElementById('res-extra');
+  if(['DESACTIVADO','EXPULSADO'].includes(opc))
+    extra.innerHTML=`<div class="fg"><label>Motivo de salida</label><select id="res-mot">${MOTIVOS.map(m=>`<option>${m}</option>`).join('')}</select></div>`;
+  else extra.innerHTML='';
+}
+
+function togFechaIni(){
+  const v=document.getElementById('res-prueba')?.value;
+  const g=document.getElementById('res-fecha-g');
+  if(g)g.style.display=v==='si'?'none':'block';
+}
+
+async function confirmarDec(){
+  if(!alertaActual)return;const a=alertaActual;
+  if(a.tipo==='nuevo_aero'){
+    const esPrueba=document.getElementById('res-prueba')?.value==='si';
+    if(esPrueba){
+      S.alertasDec[a.id]={estado:'NO_CONSIDERAR',ts:Date.now()};
+      const c=S.conductores.find(x=>x.movil==a.movil);
+      if(c){c.estFin='PENDIENTE_PROX';await saveC(c);}
+    } else {
+      const fecha=document.getElementById('res-fecha')?.value;
+      if(!fecha){alert('Ingresa la fecha de inicio de membresía');return;}
+      S.alertasDec[a.id]={estado:'CONGELADO',fechaIni:fecha,ts:Date.now()};
+      const c=S.conductores.find(x=>x.movil==a.movil);
+      if(c){
+        c.estFin='CONGELADO';c.fechaIniSvc=fecha;
+        if(fecha>S.semanaInicio){
+          const dias=dD(S.semanaInicio,fecha)-1;
+          if(dias>0){
+            const p={movil:a.movil,tipo:'Nuevo — días sin cobro',obs:`Inició el ${fecha}`,inicio:S.semanaInicio,fin:new Date(new Date(fecha+'T12:00:00').getTime()-86400000).toISOString().split('T')[0],dias};
+            S.permisos.push(p);await saveP(p);
+          }
+        }
+        await saveC(c);
+      }
+    }
+  } else {
+    if(!opcSel){alert('Selecciona una opción');return;}
+    const motivo=document.getElementById('res-mot')?.value;
+    S.alertasDec[a.id]={estado:opcSel,motivo,ts:Date.now()};
+    const c=S.conductores.find(x=>x.movil==a.movil);
+    if(c&&opcSel!=='NO_CONSIDERAR'){
+      c.estFin=opcSel;
+      if(motivo)c.motivoSalida=motivo;
+      await saveC(c);
+    }
+  }
+  opcSel=null;alertaActual=null;
+  cm('m-resolver');render();
+}
+
+// =============================================
+// REPORTES
+// =============================================
+function renderHistRep(){
+  const tbody=document.getElementById('rep-tb');
+  const sems=[...new Set(S.historial.map(h=>h.numero_semana))].sort((a,b)=>b-a).slice(0,15);
+  if(!sems.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty" style="padding:14px">Sin reportes generados aún</div></td></tr>`;return;}
+  tbody.innerHTML=sems.map(sem=>`<tr>
+    <td style="font-weight:600;color:var(--db)">Sem ${sem}</td>
+    <td style="font-size:10px">${S.historial.find(h=>h.numero_semana===sem)?.periodo||'—'}</td>
+    <td><span class="b ac" style="font-size:8px">CSV</span></td>
+    <td style="font-size:10px;color:var(--g600)">Guardado</td>
+    <td style="font-size:10px">—</td>
+    <td><button class="btn sm pri" onclick="reexpReporte(${sem})"><i class="ti ti-download"></i> Descargar</button></td>
+  </tr>`).join('');
+}
+
+function expReporte(tipo){
+  if(hayBloqueo()){goTab('alertas');alert(`⚠️ ${alPend().length} alerta${alPend().length>1?'s':''} bloqueante${alPend().length>1?'s':''} pendiente${alPend().length>1?'s':''}. Resuélvelas primero.`);return;}
+  const liq=document.getElementById('exp-liq').value||'';
+  const rows=S.conductores.filter(c=>c.estFin!=='PENDIENTE_PROX').map(c=>{
+    const p=S.permisos.find(x=>x.movil==c.movil);
+    const ss=S.saludSeg.find(x=>x.movil==c.movil);
+    let det=c.obs||'';
+    if(c.esNuevo)det=`NUEVO — inició servicios el ${c.fechaIniSvc||'—'}`;
+    else if(p)det=`${p.tipo}: ${p.obs||p.observaciones||''}`;
+    else if(ss)det=`Salud / reposo médico: ${ss.obs||ss.observaciones||''}`;
+    if(c.esMem&&c.flota==='URBANO')det+=' [MEMBRESÍA]';
+    if(c.motivoSalida)det+=` [Salida: ${c.motivoSalida}]`;
+    const tarifa=c.flota==='AEROPUERTO'&&c.cat?getTarifa(c.cat):'';
+    const estExport=tipo==='op'?calcEstOp(c):c.estFin;
+    const pIni=p?.inicio||p?.fecha_inicio||ss?.inicio||ss?.fecha_inicio||'';
+    const pFin=p?.fin||p?.fecha_fin||ss?.finEst||ss?.fecha_fin_estimada||'';
+    const dias=p?.dias||'';
+    return[c.movil,c.flota.includes('URBANO')?'URBANO':c.flota,c.sub,c.cat||'',tarifa,estExport,det,pIni,pFin,dias];
+  });
+  const csv=['Móvil,Flota,Subflota,Categoría,Tarifa,Estado,Detalle / Observación,Inicio permiso,Fin permiso,Días',...rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','))].join('\n');
+  const BOM='\uFEFF';
+  const blob=new Blob([BOM+csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`Directo_Sem${S.semana}_${tipo==='fin'?'Finanzas':tipo==='op'?'Operaciones':'Completo'}_${new Date().toLocaleDateString('es-PE').replace(/\//g,'-')}.csv`;
+  a.click();URL.revokeObjectURL(url);
+  syncMsg('✓ CSV descargado');
+}
+
+function reexpReporte(sem){
+  const rows=S.historial.filter(h=>h.numero_semana===sem).map(h=>[
+    h.movil,h.flota,h.subflota||'—',h.categoria_vehiculo||'',
+    h.estado_fin,h.estado_op,h.observaciones||'',
+    h.permiso_tipo||'',h.permiso_inicio||'',h.permiso_fin||'',h.permiso_dias||''
+  ]);
+  const csv=['Móvil,Flota,Subflota,Categoría,Est.Fin,Est.Op,Obs,Permiso,Inicio,Fin,Días',...rows.map(r=>r.map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(','))].join('\n');
+  const BOM='\uFEFF';
+  const blob=new Blob([BOM+csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=`Directo_Sem${sem}_Historico.csv`;a.click();URL.revokeObjectURL(url);
+}
+
+function initSelects(){
+  ['ind-sem','exp-sem'].forEach(id=>{
+    const el=document.getElementById(id);
+    while(el.options.length>1)el.remove(1);
+    const sems=[...new Set(S.historial.map(h=>h.numero_semana))].sort((a,b)=>b-a);
+    sems.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=`Sem ${s}`;el.appendChild(o);});
+  });
+  renderInd();
+}
+
+// =============================================
+// BUSCADOR
+// =============================================
+function buscarConductor(){
+  const q=document.getElementById('bus-input').value.trim();
+  const el=document.getElementById('bus-res');const hint=document.getElementById('bus-hint');
+  if(q.length<2){el.innerHTML='';hint.textContent='Ingresa al menos 2 caracteres';return;}
+  const matches=S.conductores.filter(c=>c.movil.includes(q));
+  hint.textContent=matches.length?`${matches.length} encontrado${matches.length>1?'s':''}`:' ';
+  if(!matches.length){el.innerHTML=`<div class="empty"><i class="ti ti-search"></i>Sin resultados para "${q}"</div>`;return;}
+  el.innerHTML=matches.map(c=>{
+    const ss=S.saludSeg.find(x=>x.movil==c.movil);
+    const estOp=calcEstOp(c);const esFP=c.flota==='FLOTA PROPIA';
+    const hist=[...S.historial.filter(h=>h.movil==c.movil)].sort((a,b)=>b.numero_semana-a.numero_semana);
+    const permSem=S.permisos.find(p=>p.movil==c.movil);
+    const permAno=hist.filter(h=>h.permiso_tipo).length+(permSem?1:0);
+    const tarifa=c.flota==='AEROPUERTO'&&c.cat?getTarifa(c.cat):'';
+    return `<div style="border:1px solid var(--g200);border-radius:var(--rl);overflow:hidden;margin-bottom:12px">
+      <div style="padding:11px 14px;background:var(--db);display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:18px;font-weight:600;color:#fff">Móvil ${c.movil}</div>
+          <div style="font-size:10px;color:rgba(255,255,255,.7);margin-top:2px">
+            ${c.flota} · <span style="background:rgba(255,255,255,.15);padding:1px 7px;border-radius:10px">${c.sub}</span>
+            ${c.cat?` · <span style="background:rgba(255,255,255,.15);padding:1px 7px;border-radius:10px">${c.cat}</span>`:''}
+            ${tarifa?` · ${tarifa}`:''}
+            · ${c.cliente}${c.esMem?' · Membresía':''}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <div style="text-align:center;padding:6px 10px;background:rgba(255,255,255,.12);border-radius:var(--r)">
+            <div style="font-size:8px;color:rgba(255,255,255,.6);margin-bottom:2px">FINANCIERO</div>
+            <span class="b ${esFP?'fp':c.estFin.toLowerCase()}">${c.estFin}</span>
+          </div>
+          <div style="text-align:center;padding:6px 10px;background:rgba(255,255,255,.12);border-radius:var(--r)">
+            <div style="font-size:8px;color:rgba(255,255,255,.6);margin-bottom:2px">OPERATIVO</div>
+            <span class="b ${estOp.toLowerCase()}">${estOp}</span>
+          </div>
+          <div style="text-align:center;padding:6px 10px;background:rgba(255,255,255,.12);border-radius:var(--r)">
+            <div style="font-size:8px;color:rgba(255,255,255,.6);margin-bottom:2px">PERMISOS/AÑO</div>
+            <div style="font-size:14px;font-weight:600;color:#fff">${permAno}</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:7px 13px;background:var(--g50);border-bottom:1px solid var(--g100);display:flex;gap:12px;font-size:11px;flex-wrap:wrap">
+        <span><strong>Sem. congelado:</strong> ${c.sc}</span>
+        <span><strong>Servicios:</strong> W:${c.wari||0} K:${c.kusi||0} S:${c.sky||0}</span>
+        ${ss?`<span style="color:var(--da)"><strong>Salud desde:</strong> ${ss.inicio||ss.fecha_inicio}</span>`:''}
+        ${c.bajaSem?'<span style="color:var(--dr)"><strong>Baja mitad semana</strong></span>':''}
+        ${c.motivoSalida?`<span style="color:var(--dr)"><strong>Motivo salida:</strong> ${c.motivoSalida}</span>`:''}
+      </div>
+      <div>
+        <div style="display:grid;grid-template-columns:55px 55px 60px 82px 82px 60px 70px 1fr;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--g600);padding:5px 13px;background:var(--g50);border-bottom:1px solid var(--g100)">
+          <span>Semana</span><span>Sub</span><span>Categ.</span><span>Financiero</span><span>Operativo</span><span>W/K/S</span><span>Permiso</span><span>Obs.</span>
+        </div>
+        ${hist.slice(0,12).map(h=>`<div style="display:flex;align-items:center;gap:7px;padding:6px 13px;border-bottom:1px solid var(--g100);font-size:11px">
+          <span style="width:55px;font-size:10px;font-weight:600;color:var(--db);flex-shrink:0">Sem ${h.numero_semana}</span>
+          <span style="width:55px;flex-shrink:0"><span class="b sb" style="font-size:8px">${h.subflota||'—'}</span></span>
+          <span style="width:60px;flex-shrink:0">${h.categoria_vehiculo?`<span class="b ca" style="font-size:8px">${h.categoria_vehiculo}</span>`:''}</span>
+          <span style="width:82px;flex-shrink:0"><span class="b ${(h.estado_fin||'congelado').toLowerCase()}" style="font-size:8px">${h.estado_fin||'—'}</span></span>
+          <span style="width:82px;flex-shrink:0"><span class="b ${(h.estado_op||'congelado').toLowerCase()}" style="font-size:8px">${h.estado_op||'—'}</span></span>
+          <span style="width:60px;font-size:10px;color:var(--g600);flex-shrink:0">W:${h.wari||0} K:${h.kusi||0}</span>
+          <span style="width:70px;flex-shrink:0">${h.permiso_tipo?`<span class="b co" style="font-size:8px">${h.permiso_tipo.split('/')[0].trim()}</span>`:'—'}</span>
+          <span style="font-size:10px;color:var(--g600);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h.observaciones||'—'}</span>
+        </div>`).join('')}
+        ${!hist.length?`<div style="padding:8px 13px;font-size:11px;color:var(--g400)">Sin historial previo</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function verHist(movil){
+  goTab('buscador');
+  document.getElementById('bus-input').value=movil;
+  buscarConductor();
+}
+
+// =============================================
+// INDICADORES
+// =============================================
+function updSubsInd(){
+  const fl=document.getElementById('ind-flt').value;
+  const sel=document.getElementById('ind-sub');
+  while(sel.options.length>1)sel.remove(1);
+  if(fl&&SUBFLOTAS[fl])(SUBFLOTAS[fl]||[]).filter(s=>s!=='—').forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);});
+}
+
+function renderInd(){
+  const semF=document.getElementById('ind-sem').value;
+  const flotaF=document.getElementById('ind-flt').value;
+  const subF=document.getElementById('ind-sub').value;
+  const tipo=document.getElementById('ind-tipo').value;
+  const getEst=c=>tipo==='fin'?c.estado_fin:(c.estado_op||calcEstOp(c));
+  const filtrar=c=>(flotaF==='all'||c.flota===flotaF)&&(subF==='all'||c.subflota===subF||c.sub===subF);
+  const actCur=S.conductores.filter(c=>filtrar(c)&&(tipo==='fin'?c.estFin==='ACTIVO':calcEstOp(c)==='ACTIVO')).length;
+  const conCur=S.conductores.filter(c=>filtrar(c)&&(tipo==='fin'?c.estFin==='CONGELADO':calcEstOp(c)==='CONGELADO')).length;
+  const desCur=S.conductores.filter(c=>filtrar(c)&&['DESACTIVADO','EXPULSADO'].includes(tipo==='fin'?c.estFin:calcEstOp(c))).length;
+  let sems=S.historial;
+  if(semF!=='all')sems=sems.filter(h=>h.numero_semana==semF);
+  const memU=S.conductores.filter(c=>c.esMem&&c.flota==='URBANO'&&(flotaF==='all'||flotaF==='URBANO'));
+  const permTipos={};sems.filter(h=>h.permiso_tipo&&filtrar(h)).forEach(h=>{permTipos[h.permiso_tipo]=(permTipos[h.permiso_tipo]||0)+1;});
+  const catData={};S.conductores.filter(c=>c.flota==='AEROPUERTO'&&c.cat&&(flotaF==='all'||flotaF==='AEROPUERTO')).forEach(c=>{catData[c.cat]=(catData[c.cat]||0)+1;});
+  const numsems=[...new Set(sems.map(h=>h.numero_semana))].sort((a,b)=>b-a).slice(0,10);
+  const filas=numsems.flatMap(numSem=>{
+    const flotas=flotaF==='all'?['AEROPUERTO','URBANO','AEROLINEA','JOCKEY','BELLAVISTA']:[flotaF];
+    return flotas.map(f=>{
+      const cds=sems.filter(h=>h.numero_semana===numSem&&h.flota===f&&(subF==='all'||h.subflota===subF));
+      if(!cds.length)return'';
+      const act=cds.filter(h=>getEst(h)==='ACTIVO').length;
+      const con=cds.filter(h=>getEst(h)==='CONGELADO').length;
+      const des=cds.filter(h=>['DESACTIVADO','EXPULSADO'].includes(getEst(h))).length;
+      return `<tr><td style="font-weight:600;color:var(--db)">Sem ${numSem}</td><td style="font-size:10px">${f}</td><td><span class="b sb" style="font-size:8px">${subF==='all'?'Todas':subF}</span></td><td><span class="b ac">${act}</span></td><td><span class="b co">${con}</span></td><td><span class="b de">${des}</span></td></tr>`;
+    });
+  }).filter(Boolean).join('');
+  document.getElementById('ind-cont').innerHTML=`
+    <div class="cg c3" style="margin-bottom:12px">
+      <div class="mc g"><div class="ml">Activos (${tipo==='fin'?'fin':'op'})</div><div class="mv">${actCur}</div><div style="font-size:10px;opacity:.65;margin-top:2px">Semana actual</div></div>
+      <div class="mc a"><div class="ml">Congelados</div><div class="mv">${conCur}</div></div>
+      <div class="mc r"><div class="ml">Desact / Expulsados</div><div class="mv">${desCur}</div></div>
+    </div>
+    ${memU.length?`<div class="ibox pu" style="margin-bottom:12px"><i class="ti ti-users" style="margin-right:5px"></i><strong>${memU.length} conductores con membresía urbana:</strong> ${memU.map(c=>`<span class="b sb" style="margin-left:4px">${c.movil}</span>`).join('')}</div>`:''}
+    ${Object.keys(catData).length?`<div class="panel" style="margin-bottom:12px"><h4>Categorías de vehículo — Aeropuerto</h4><div class="bc">${Object.entries(catData).map(([cat,n])=>`<div class="br"><span class="bl">${cat} · ${getTarifa(cat)}</span><div class="bt"><div class="bf" style="width:${Math.round(n/Math.max(...Object.values(catData))*100)}%;background:var(--db)88"></div></div><span class="bv">${n}</span></div>`).join('')}</div></div>`:''}
+    ${Object.keys(permTipos).length?`<div class="panel" style="margin-bottom:12px"><h4>Permisos históricos por tipo</h4><div class="bc">${Object.entries(permTipos).sort((a,b)=>b[1]-a[1]).map(([t,n])=>`<div class="br"><span class="bl">${t.split('/')[0].trim()}</span><div class="bt"><div class="bf" style="width:${Math.round(n/Math.max(...Object.values(permTipos))*100)}%;background:var(--da)88"></div></div><span class="bv">${n}</span></div>`).join('')}</div></div>`:''}
+    <div class="sec"><i class="ti ti-activity"></i>Evolución semanal por flota</div>
+    <div class="tw"><table>
+      <thead><tr>
+        <th style="width:70px">Semana</th><th style="width:120px">Flota</th>
+        <th style="width:90px">Subflota</th><th style="width:80px">Activos</th>
+        <th style="width:85px">Congelados</th><th>Desact/Exp</th>
+      </tr></thead>
+      <tbody>${filas||`<tr><td colspan="6"><div class="empty" style="padding:14px">Sin historial</div></td></tr>`}</tbody>
+    </table></div>`;
+}
+
+// =============================================
+// CIERRE
+// =============================================
+function intentarCierre(){
+  if(S.rol!=='admin'){document.getElementById('m-no-admin').style.display='flex';return;}
+  if(hayBloqueo()){goTab('alertas');alert(`⚠️ ${alPend().length} alerta${alPend().length>1?'s':''} bloqueante${alPend().length>1?'s':''} pendiente${alPend().length>1?'s':''}. Resuélvelas antes de generar el reporte.`);return;}
+  estadosRev={};S.conductores.forEach(c=>{estadosRev[c.movil]=calcEstFinProp(c);});
+  renderRevP1();
+  document.getElementById('rev-p1').style.display='block';
+  document.getElementById('rev-p2').style.display='none';
+  document.getElementById('m-revision').style.display='flex';
+}
+
+function renderRevP1(){
+  const el=document.getElementById('rev-res');el.innerHTML='';
+  ['AEROPUERTO','URBANO','AEROLINEA','JOCKEY','BELLAVISTA','FLOTA PROPIA'].forEach(f=>{
+    const cds=S.conductores.filter(c=>c.flota===f&&c.estFin!=='PENDIENTE_PROX');if(!cds.length)return;
+    const act=cds.filter(c=>estadosRev[c.movil]==='ACTIVO').length;
+    const con=cds.filter(c=>estadosRev[c.movil]==='CONGELADO').length;
+    const des=cds.filter(c=>['DESACTIVADO','EXPULSADO'].includes(estadosRev[c.movil]||'')).length;
+    const actO=cds.filter(c=>calcEstOp(c)==='ACTIVO').length;
+    el.innerHTML+=`<div class="fb"><div class="fh">
+      <span style="font-size:12px;font-weight:600">${f}</span>
+      <div style="display:flex;gap:5px;align-items:center">
+        <span style="font-size:10px;color:var(--g400)">Fin:</span>
+        <span class="chip" style="color:var(--dg)">${act} act</span>
+        <span class="chip" style="color:var(--da)">${con} cong</span>
+        <span class="chip" style="color:var(--dr)">${des} des/exp</span>
+        <span style="font-size:10px;color:var(--g400);margin-left:4px">Op:</span>
+        <span class="chip" style="color:var(--dg)">${actO} act</span>
+      </div>
+    </div></div>`;
+  });
+  const correos=S.conductores.filter(c=>c.esMem&&c.flota==='URBANO'&&(S.permisos.find(p=>p.movil==c.movil)||S.saludSeg.find(s=>s.movil==c.movil))).length;
+  if(correos>0)el.innerHTML+=`<div class="ibox in" style="margin-top:10px"><i class="ti ti-mail" style="margin-right:5px"></i><strong>${correos} correo${correos>1?'s':''} pendiente${correos>1?'s':''} a Finanzas</strong> (Urbano membresía)</div>`;
+}
+
+function irP2(){
+  document.getElementById('rev-p1').style.display='none';
+  document.getElementById('rev-p2').style.display='block';
+  const el=document.getElementById('rev-det');el.innerHTML='';
+  ['AEROPUERTO','URBANO','AEROLINEA','JOCKEY','BELLAVISTA','FLOTA PROPIA'].forEach(f=>{
+    const cds=S.conductores.filter(c=>c.flota===f&&c.estFin!=='PENDIENTE_PROX');if(!cds.length)return;
+    const rows=cds.map(c=>{
+      const total=svcs(c);const estOp=calcEstOp(c);
+      const isPl=PLAZAS.includes(c.flota);const isFP=c.flota==='FLOTA PROPIA';
+      const p=S.permisos.find(x=>x.movil==c.movil);
+      return `<div class="rr">
+        <span style="font-size:12px;font-weight:600;width:55px;flex-shrink:0">${c.movil}</span>
+        <span style="width:58px;flex-shrink:0"><span class="b sb" style="font-size:8px">${c.sub||'—'}</span></span>
+        <span style="width:55px;flex-shrink:0">${c.cat?`<span class="b ca" style="font-size:8px">${c.cat}</span>`:''}</span>
+        <span style="flex:1;font-size:10px;color:var(--g600);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(c.obs||'').substring(0,20)}</span>
+        <span style="width:42px;text-align:center;font-size:10px;color:var(--g600);flex-shrink:0">${total}svc</span>
+        <div style="flex-shrink:0">
+          ${isPl||isFP||['EXPULSADO','DESACTIVADO'].includes(c.estFin)?
+            `<span class="b ${c.estFin.toLowerCase()}" style="font-size:9px">${c.estFin}</span>`:
+            `<select onchange="estadosRev['${c.movil}']=this.value" style="font-size:11px;padding:3px 6px;border-radius:var(--r);border:1px solid var(--g200);background:#fff;width:115px">
+              <option value="ACTIVO" ${estadosRev[c.movil]==='ACTIVO'?'selected':''}>✅ ACTIVO</option>
+              <option value="CONGELADO" ${estadosRev[c.movil]==='CONGELADO'?'selected':''}>❄️ CONGELADO</option>
+              <option value="DESACTIVADO" ${estadosRev[c.movil]==='DESACTIVADO'?'selected':''}>🔴 DESACTIVADO</option>
+              <option value="EXPULSADO" ${estadosRev[c.movil]==='EXPULSADO'?'selected':''}>⛔ EXPULSADO</option>
+            </select>`}
+        </div>
+        <span style="width:80px;flex-shrink:0;text-align:right"><span class="b ${estOp.toLowerCase()}" style="font-size:8px">Op: ${estOp}</span></span>
+      </div>`;
+    }).join('');
+    el.innerHTML+=`<div class="fb"><div class="fh"><span style="font-size:11px;font-weight:600">${f}</span><span style="font-size:10px;color:var(--g400)">Fin: editable · Op: automático por servicios</span></div><div>${rows}</div></div>`;
+  });
+}
+
+function volverP1(){document.getElementById('rev-p1').style.display='block';document.getElementById('rev-p2').style.display='none';}
+
+function abrirExport(){cm('m-revision');expTipo='fin';selExp('fin');document.getElementById('m-export').style.display='flex';}
+
+function selExp(tipo){
+  expTipo=tipo;
+  const f=document.getElementById('ex-fin');const o=document.getElementById('ex-op');
+  if(tipo==='fin'){f.style.borderWidth='2px';f.style.borderColor='var(--db)';f.style.background='var(--dbl)';o.style.borderWidth='1px';o.style.borderColor='var(--g200)';o.style.background='';}
+  else{o.style.borderWidth='2px';o.style.borderColor='var(--dg)';o.style.background='var(--dgl)';f.style.borderWidth='1px';f.style.borderColor='var(--g200)';f.style.background='';}
+  document.getElementById('ex-sel-txt').textContent=`✓ ${tipo==='fin'?'Para Finanzas':'Para Operaciones'} seleccionado`;
+  document.getElementById('ex-sel-txt').style.color=tipo==='fin'?'var(--db)':'var(--dg)';
+}
+
+async function confirmarCierre(){
+  const liq=document.getElementById('ex-liq').value||'';
+  syncMsg('⟳ Guardando...');
+  S.conductores.forEach(c=>{
+    if(estadosRev[c.movil]&&!PLAZAS.includes(c.flota)&&c.flota!=='FLOTA PROPIA'&&!['EXPULSADO','DESACTIVADO'].includes(c.estFin))
+      c.estFin=estadosRev[c.movil];
+  });
+  await saveHistorial();
+  // Bajas de semana → DESACTIVADO
+  for(const c of S.conductores){if(c.bajaSem){c.estFin='DESACTIVADO';c.bajaSem=false;await saveC(c);}}
+  // Cambios de flota
+  for(const n of S.novedades.filter(x=>x.tipo==='cambio_flota')){
+    const c=S.conductores.find(x=>x.movil==n.movil);
+    if(c){c.flota=n.flota;c.sub=n.sub||n.subflota||'—';c.cat=n.cat||c.cat;c.estFin='ACTIVO';c.sc=0;await saveC(c);}
+  }
+  // Nuevos Aero sin servicios: incrementar contador semanas
+  for(const c of S.conductores.filter(x=>x.esNuevo&&x.flota==='AEROPUERTO'&&svcs(x)===0)){
+    c.semSinSvc=(c.semSinSvc||0)+1;await saveC(c);
+  }
+  // Avanzar semana
+  S.semana+=1;
+  const nl=new Date(S.semanaInicio+'T12:00:00');nl.setDate(nl.getDate()+7);
+  S.semanaInicio=nl.toISOString().split('T')[0];
+  for(const c of S.conductores){
+    if(c.flota==='FLOTA PROPIA'||PLAZAS.includes(c.flota))continue;
+    if(c.estFin==='CONGELADO'){c.sc=(c.sc||0)+1;}
+    const ss=S.saludSeg.find(x=>x.movil==c.movil);
+    if(!ss&&AUTO_DESACT.includes(c.flota)&&c.sc>=3&&c.estFin==='CONGELADO')c.estFin='DESACTIVADO';
+    c.esNuevo=false;
+    await saveC(c);
+  }
+  // Activar pendientes próxima semana
+  for(const c of S.conductores.filter(x=>x.estFin==='PENDIENTE_PROX')){c.estFin='ACTIVO';c.esNuevo=true;await saveC(c);}
+  // Guardar config
+  await saveCfg('semana_actual',String(S.semana));
+  await saveCfg('semana_inicio',S.semanaInicio);
+  await saveCfg('reporte_generado_en',new Date().toISOString());
+  // Limpiar estado
+  S.alertasDec={};S.permisos=[];S.novedades=[];
+  S.servicios={wari:false,kusi:false,sky:false};
+  S.predata={wari:false,kusi:false,sky:false};
+  ['wari','kusi','sky'].forEach(p=>{
+    ['pre','fin'].forEach(t=>{
+      const z=document.getElementById(`z-${p}-${t}`);
+      if(z){z.className='uz'+(t==='fin'?' done':'');document.getElementById(`l-${p}-${t}`).textContent=t==='pre'?'Pre-data':'Data final';}
+    });
+    document.getElementById('pg-'+p).style.width='0';
+  });
+  document.getElementById('diff-res').innerHTML='';
+  // Exportar CSV automáticamente
+  expReporte(expTipo);
+  cm('m-export');render();initSelects();
+  alert(`✅ Reporte Semana ${S.semana-1} cerrado y exportado.\n📅 Nueva semana ${S.semana}: ${getPeriodo(S.semanaInicio)}`);
+}
+
+// =============================================
+// FORMULARIOS
+// =============================================
+function onMovilP(){
+  const m=document.getElementById('mp-movil').value.trim();
+  const c=S.conductores.find(x=>x.movil==m);
+  const tarifa=c&&c.flota==='AEROPUERTO'&&c.cat?` · ${getTarifa(c.cat)}`:'';
+  document.getElementById('mp-info').innerHTML=c?`<span style="font-size:11px">${c.flota} <span class="b sb" style="margin-left:3px">${c.sub}</span>${c.cat?` <span class="b ca" style="margin-left:2px">${c.cat}</span>`:''} · Fin: ${c.estFin} · ${svcs(c)} svc${c.esMem?' · <span class="b me">Membresía</span>':''}${tarifa}</span>`:m?'No encontrado':'';
+  document.getElementById('av-mem').style.display=c&&c.esMem?'block':'none';
+}
+
+function onTipoP(){
+  const v=document.getElementById('mp-tipo').value;
+  document.getElementById('av-choque').style.display=v==='Choque / accidente'?'block':'none';
+  document.getElementById('av-salud').style.display=v==='Salud / reposo médico'?'block':'none';
+}
+
+function calcD(){
+  const i=document.getElementById('mp-ini').value,f=document.getElementById('mp-fin').value;
+  if(i&&f){const d=dD(i,f);document.getElementById('mp-dias').textContent=`${d} día${d!==1?'s':''} de permiso`;}
+}
+
+function openPermiso(){
+  const hoy=new Date().toISOString().split('T')[0];
+  ['mp-movil','mp-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('mp-info').innerHTML='';
+  document.getElementById('mp-ini').value=hoy;
+  document.getElementById('mp-fin').value=hoy;
+  document.getElementById('mp-dias').textContent='1 día de permiso';
+  ['av-choque','av-salud','av-mem'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('m-permiso').style.display='flex';
+}
+
+async function guardarPermiso(){
+  const movil=document.getElementById('mp-movil').value.trim();if(!movil){alert('Ingresa el móvil');return;}
+  const tipo=document.getElementById('mp-tipo').value,obs=document.getElementById('mp-obs').value;
+  const inicio=document.getElementById('mp-ini').value,fin=document.getElementById('mp-fin').value;
+  const dias=inicio&&fin?dD(inicio,fin):null;
+  const c=S.conductores.find(x=>x.movil==movil);const flota=c?c.flota:'';const total=c?svcs(c):0;
+  if(tipo==='Salud / reposo médico'){
+    if(!S.saludSeg.find(x=>x.movil==movil)){
+      const s={movil,flota,sub:c?.sub||'—',inicio,finEst:fin,obs,semana_inicio:S.semana,notas:[],activo:true};
+      S.saludSeg.push(s);
+      try{await sb.from('seguimiento_salud').insert({movil,flota,subflota:c?.sub||'—',fecha_inicio:inicio,fecha_fin_estimada:fin,observaciones:obs,semana_inicio:S.semana,activo:true});}catch(e){console.error(e);}
+    }
+    if(c){c.estFin='CONGELADO';c.obs='Salud: '+obs;await saveC(c);}
+  } else {
+    const p={movil,tipo,obs,inicio,fin,dias};S.permisos.push(p);await saveP(p);
+    if(c){c.estFin=flota==='AEROPUERTO'?'CONGELADO':(total>0&&c.esMem?'ACTIVO':'CONGELADO');c.obs=tipo+': '+obs;await saveC(c);}
+  }
+  cm('m-permiso');render();
+}
+
+async function elimPerm(movil){
+  if(!confirm('¿Eliminar permiso?'))return;
+  S.permisos=S.permisos.filter(p=>p.movil!=movil);
+  try{await sb.from('permisos').update({activo:false}).eq('movil',movil);}catch(e){}
+  renderPermisos();renderPadron();renderAlertas();updBtns();
+}
+
+function openNota(movil){document.getElementById('nota-movil').value=movil;document.getElementById('nota-txt').value='';document.getElementById('m-nota').style.display='flex';}
+
+async function guardarNota(){
+  const movil=document.getElementById('nota-movil').value;
+  const txt=document.getElementById('nota-txt').value.trim();
+  if(!txt){alert('Escribe una nota');return;}
+  const s=S.saludSeg.find(x=>x.movil==movil);
+  if(s){
+    if(!s.notas)s.notas=[];
+    const nota={sem:S.semana,texto:txt,fecha:new Date().toLocaleDateString('es-PE')};
+    s.notas.push(nota);
+    try{
+      const{data:sd}=await sb.from('seguimiento_salud').select('id').eq('movil',movil).eq('activo',true).single();
+      if(sd)await sb.from('notas_salud').insert({seguimiento_id:sd.id,movil,semana_numero:S.semana,texto:txt,fecha:nota.fecha});
+    }catch(e){console.error(e);}
+  }
+  cm('m-nota');renderPermisos();
+}
+
+function editSalud(i){
+  const s=S.saludSeg[i];
+  const v=prompt(`Editar fin estimado — Móvil ${s.movil}\nActual: ${s.finEst||s.fecha_fin_estimada||'sin fecha'}\nNueva fecha (YYYY-MM-DD):`);
+  if(v===null)return;s.finEst=v||'';renderPermisos();
+}
+
+async function cerrarSalud(i){
+  if(!confirm('¿Cerrar seguimiento de salud?'))return;
+  const s=S.saludSeg[i];S.saludSeg.splice(i,1);
+  try{await sb.from('seguimiento_salud').update({activo:false}).eq('movil',s.movil);}catch(e){}
+  render();
+}
+
+function updSubsNov(){
+  const fl=document.getElementById('nov-flota').value;
+  const sel=document.getElementById('nov-sub');sel.innerHTML='';
+  (SUBFLOTAS[fl]||[]).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);});
+  document.getElementById('nov-cat-g').style.display=fl==='AEROPUERTO'?'block':'none';
+}
+
+function updSubsNovAnt(){
+  const fl=document.getElementById('nov-fant').value;
+  const sel=document.getElementById('nov-sant');sel.innerHTML='';
+  (SUBFLOTAS[fl]||[]).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);});
+}
+
+function openNov(tipo){
+  document.getElementById('nov-tipo').value=tipo;
+  ['nov-movil','nov-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('nov-actual').innerHTML='';
+  ['av-baja','av-prox'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('nov-mot-g').style.display=tipo==='desactivar'?'block':'none';
+  document.getElementById('nov-ant-g').style.display=['cambio_flota','baja_semana'].includes(tipo)?'block':'none';
+  document.getElementById('nov-sant-g').style.display=tipo==='cambio_flota'?'block':'none';
+  document.getElementById('nov-fecha-g').style.display='none';
+  document.getElementById('av-baja').style.display=tipo==='baja_semana'?'block':'none';
+  const t={nuevo:'Nuevo ingreso',reactivacion:'Reactivación',cambio_flota:'Cambio de flota',baja_semana:'Baja a mitad de semana',desactivar:'Desactivar / Expulsar'};
+  document.getElementById('nov-tit').textContent=t[tipo]||tipo;
+  updSubsNov();updSubsNovAnt();
+  document.getElementById('m-novedad').style.display='flex';
+}
+
+function onMovilN(){
+  const m=document.getElementById('nov-movil').value.trim();
+  const c=S.conductores.find(x=>x.movil==m);
+  document.getElementById('nov-actual').innerHTML=c?`Actual: <span style="font-size:11px">${c.flota} <span class="b sb">${c.sub}</span>${c.cat?` <span class="b ca">${c.cat}</span>`:''} · ${c.estFin}</span>`:'';
+  if(c){document.getElementById('nov-flota').value=c.flota;updSubsNov();document.getElementById('nov-sub').value=c.sub||'—';}
+  const tipo=document.getElementById('nov-tipo').value;const fl=document.getElementById('nov-flota').value;
+  const esAero=fl==='AEROPUERTO'&&['reactivacion','nuevo'].includes(tipo);
+  document.getElementById('av-prox').style.display=esAero?'block':'none';
+  document.getElementById('nov-fecha-g').style.display=esAero?'block':'none';
+}
+
+async function guardarNovedad(){
+  const movil=document.getElementById('nov-movil').value.trim();if(!movil){alert('Ingresa el móvil');return;}
+  const tipo=document.getElementById('nov-tipo').value;
+  const flota=document.getElementById('nov-flota').value;
+  const sub=document.getElementById('nov-sub').value;
+  const cat=document.getElementById('nov-cat')?.value||'';
+  const flotaAnt=document.getElementById('nov-fant').value;
+  const subAnt=document.getElementById('nov-sant').value;
+  const motivo=document.getElementById('nov-mot')?.value;
+  const obs=document.getElementById('nov-obs').value;
+  const fechaIni=document.getElementById('nov-fecha')?.value;
+  const n={movil,tipo,flota,sub,cat,flotaAnt:['cambio_flota','baja_semana'].includes(tipo)?flotaAnt:null,subAnt:tipo==='cambio_flota'?subAnt:null,motivo:tipo==='desactivar'?motivo:null,obs,fecha:new Date().toLocaleDateString('es-PE')};
+  S.novedades.push(n);await saveNov(n);
+  const c=S.conductores.find(x=>x.movil==movil);
+  const esProx=flota==='AEROPUERTO'&&fechaIni&&fechaIni>S.semanaInicio;
+  if(tipo==='nuevo'){
+    if(!c){
+      const nc={movil,flota,sub,cat,cliente:document.getElementById('nov-cli').value,estFin:esProx?'PENDIENTE_PROX':'ACTIVO',obs:'Nuevo sem.'+S.semana,wari:0,kusi:0,sky:0,sc:0,bajaSem:false,esMem:sub==='Membresía',esNuevo:true,semSinSvc:0,motivoSalida:null};
+      S.conductores.push(nc);await saveC(nc);
+    }
+  } else if(tipo==='reactivacion'&&c){
+    if(esProx){c.estFin='PENDIENTE_PROX';c.obs='Reactivación desde '+fechaIni;}
+    else{c.estFin='ACTIVO';c.sub=sub;c.cat=cat||c.cat;c.sc=0;c.bajaSem=false;c.obs='Reactivado sem.'+S.semana;}
+    await saveC(c);
+  } else if(tipo==='baja_semana'&&c){c.estFin='CONGELADO';c.bajaSem=true;c.obs='Baja a mitad de semana';await saveC(c);}
+  else if(tipo==='cambio_flota'&&c){c.obs=`Cambio a ${flota}·${sub} desde ${flotaAnt}·${subAnt}`;}
+  else if(tipo==='desactivar'&&c){
+    c.estFin=obs.toLowerCase().includes('expul')||motivo==='Mal comportamiento'?'EXPULSADO':'DESACTIVADO';
+    c.motivoSalida=motivo;c.obs=obs||motivo;await saveC(c);
+  }
+  cm('m-novedad');render();
+}
+
+function openPlazas(base,tipo){
+  document.getElementById('pl-tipo').value=tipo;
+  document.getElementById('pl-moviles').value='';
+  document.getElementById('pl-obs').value='';
+  if(base)document.getElementById('pl-base').value=base;
+  document.getElementById('pl-tit').textContent=tipo==='ingreso'?'Registrar altas — Plazas':'Registrar bajas — Plazas';
+  const ib=document.getElementById('pl-ibox');
+  ib.textContent=tipo==='ingreso'?'Estado financiero y operativo → ACTIVO':'Estado financiero y operativo → DESACTIVADO';
+  ib.className=tipo==='ingreso'?'ibox ok':'ibox ch';
+  document.getElementById('m-plazas').style.display='flex';
+}
+
+async function guardarPlazas(){
+  const tipo=document.getElementById('pl-tipo').value;
+  const base=document.getElementById('pl-base').value;
+  const raw=document.getElementById('pl-moviles').value;
+  const obs=document.getElementById('pl-obs').value;
+  const moviles=raw.split(/[\n,]+/).map(m=>m.trim()).filter(Boolean);
+  if(!moviles.length){alert('Ingresa al menos un móvil');return;}
+  for(const movil of moviles){
+    const estFin=tipo==='ingreso'?'ACTIVO':'DESACTIVADO';
+    const existe=S.conductores.find(c=>c.movil==movil);
+    if(tipo==='ingreso'){
+      if(!existe){const nc={movil,flota:base,sub:'—',cat:'',cliente:'AFILIADO',estFin,obs,wari:0,kusi:0,sky:0,sc:0,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null};S.conductores.push(nc);await saveC(nc);}
+      else{existe.flota=base;existe.estFin=estFin;await saveC(existe);}
+    } else if(existe){existe.estFin='DESACTIVADO';existe.obs=obs||'Baja counter';await saveC(existe);}
+    const pm={movil,base,tipo,observaciones:obs,semana_numero:S.semana};
+    S.plazasMovs.push({...pm,semana_numero:S.semana});
+    try{await sb.from('plazas_movimientos').insert(pm);}catch(e){}
+  }
+  cm('m-plazas');render();
+}
+
+// =============================================
+// SERVICIOS
+// =============================================
+function simCarga(plat,tipo){
+  if(plat==='op'){render();alert('✓ Corrección operativa aplicada. Los números de gerencia se actualizaron.');return;}
+  const pg=document.getElementById('pg-'+plat);
+  const lbl=document.getElementById(`l-${plat}-${tipo}`);
+  const zone=document.getElementById(`z-${plat}-${tipo}`);
+  if(!pg||!lbl||!zone)return;
+  let w=0;lbl.textContent='Procesando...';
+  const iv=setInterval(()=>{
+    w+=Math.random()*25;
+    if(w>=100){w=100;clearInterval(iv);
+      if(tipo==='pre'){
+        lbl.textContent='✓ Pre-data cargada';zone.className='uz pre';S.predata[plat]=true;
+        svcsPre=S.conductores.filter(c=>!PLAZAS.includes(c.flota)&&c.flota!=='FLOTA PROPIA').map(c=>({movil:c.movil,estFin:calcEstFinProp(c),svcs:svcs(c)}));
+      } else {
+        lbl.textContent='✓ Data final';zone.className='uz done';S.servicios[plat]=true;
+        if(S.servicios.wari&&S.servicios.kusi&&S.servicios.sky)mostrarDiff();
+      }
+      updNavDots();updateBanner();
+    }
+    pg.style.width=Math.round(w)+'%';
+  },180);
+}
+
+function corrOpLunes(){
+  if(confirm('¿Confirmar corrección de estado operativo con data limpia?\nEsto NO modifica el estado financiero ya enviado a Finanzas.')){
+    S.conductores.forEach(c=>{if(!PLAZAS.includes(c.flota)&&c.flota!=='FLOTA PROPIA')saveC(c);});
+    render();alert('✓ Corrección operativa aplicada. Los números de gerencia se actualizaron.');
+  }
+}
+
+function mostrarDiff(){
+  if(!svcsPre.length)return;
+  const cambios=[];
+  S.conductores.forEach(c=>{
+    if(PLAZAS.includes(c.flota)||c.flota==='FLOTA PROPIA')return;
+    const pre=svcsPre.find(x=>x.movil==c.movil);
+    const nuevo=calcEstFinProp(c);
+    if(pre&&pre.estFin!==nuevo)cambios.push({movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,antes:pre.estFin,despues:nuevo,svcsAntes:pre.svcs,svcsNuevo:svcs(c)});
+  });
+  const el=document.getElementById('diff-res');
+  if(!cambios.length){el.innerHTML=`<div class="panel" style="text-align:center;color:var(--g600)"><i class="ti ti-check" style="font-size:18px;display:block;margin-bottom:5px;color:var(--dg)"></i>Sin cambios entre pre-data y data final</div>`;return;}
+  el.innerHTML=`<div class="panel"><div class="sec" style="margin-bottom:8px"><i class="ti ti-arrows-exchange" style="color:var(--da)"></i>${cambios.length} cambio${cambios.length>1?'s':''} detectado${cambios.length>1?'s':''}</div>
+  <table style="width:100%"><thead><tr>
+    <th style="width:60px">Móvil</th><th style="width:100px">Flota</th>
+    <th style="width:70px">Sub</th><th style="width:65px">Cat.</th>
+    <th style="width:90px">Antes</th><th style="width:28px"></th><th style="width:100px">Ahora</th><th>Servicios</th>
+  </tr></thead><tbody>${cambios.map(d=>`<tr style="background:var(--dal)">
+    <td style="font-weight:600;color:var(--db)">${d.movil}</td>
+    <td style="font-size:10px">${d.flota}</td>
+    <td><span class="b sb" style="font-size:8px">${d.sub}</span></td>
+    <td>${d.cat?`<span class="b ca" style="font-size:8px">${d.cat}</span>`:''}</td>
+    <td><span class="b ${d.antes.toLowerCase()}">${d.antes}</span></td>
+    <td style="text-align:center;color:var(--da);font-size:14px">→</td>
+    <td><span class="b ${d.despues.toLowerCase()}">${d.despues}</span></td>
+    <td style="font-size:10px;color:var(--g600)">Antes: ${d.svcsAntes} · Ahora: ${d.svcsNuevo}</td>
+  </tr>`).join('')}</tbody></table></div>`;
+  render();
+}
+
+// =============================================
+// PIN / ROL
+// =============================================
+function toggleRol(){if(S.rol==='admin'){S.rol='ejecutivo';updRolUI();}else abrirPin();}
+function abrirPin(){document.getElementById('pin-input').value='';document.getElementById('pin-err').textContent='';document.getElementById('pin-screen').style.display='flex';}
+function chkPin(){
+  const v=document.getElementById('pin-input').value;
+  if(v.length===4){
+    if(v===ADMIN_PIN){S.rol='admin';updRolUI();cm('pin-screen');updateBanner();}
+    else{document.getElementById('pin-err').textContent='PIN incorrecto';document.getElementById('pin-input').value='';}
+  }
+}
+function updRolUI(){const a=S.rol==='admin';document.getElementById('rol-lbl').textContent=a?'Admin':'Ejecutivo';document.getElementById('rol-pill').className=a?'rol-pill admin':'rol-pill';}
+
+// =============================================
+// UTILS
+// =============================================
+function cm(id){document.getElementById(id).style.display='none';}
+function goTab(tab){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  const btn=document.querySelector(`[data-tab="${tab}"]`);if(btn)btn.classList.add('active');
+}
+
+setInterval(updateBanner,60000);
+loadFromDB();
+</script>
+</body>
+</html>
