@@ -209,11 +209,10 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
   <div class="cg c2" style="margin-bottom:14px">
     <div style="border:1px solid var(--g200);border-radius:var(--rl);padding:14px">
       <div style="font-size:10px;font-weight:600;text-transform:uppercase;color:var(--g600);margin-bottom:10px;letter-spacing:.5px">Estado financiero</div>
-      <div class="cg c4" style="margin-bottom:0">
+      <div class="cg c3" style="margin-bottom:0">
         <div class="mc g"><div class="ml">Activos</div><div class="mv" id="f-ac">—</div></div>
         <div class="mc a"><div class="ml">Congelados</div><div class="mv" id="f-co">—</div></div>
         <div class="mc r"><div class="ml">Desactivados</div><div class="mv" id="f-de">—</div></div>
-        <div class="mc gr"><div class="ml">Expulsados</div><div class="mv" id="f-ex">—</div></div>
       </div>
     </div>
     <div style="border:1px solid var(--g200);border-radius:var(--rl);padding:14px">
@@ -1012,8 +1011,12 @@ function render(){
 
 function updMetrics(){
   const nfp=c=>c.flota!=='FLOTA PROPIA';
+  // Financiero: EXPULSADO se cuenta como DESACTIVADO
+  document.getElementById('f-ac').textContent=S.conductores.filter(c=>nfp(c)&&c.estFin==='ACTIVO').length;
+  document.getElementById('f-co').textContent=S.conductores.filter(c=>nfp(c)&&c.estFin==='CONGELADO').length;
+  document.getElementById('f-de').textContent=S.conductores.filter(c=>nfp(c)&&['DESACTIVADO','EXPULSADO'].includes(c.estFin)).length;
+  // Operativo: EXPULSADO aparece por separado
   ['ACTIVO','CONGELADO','DESACTIVADO','EXPULSADO'].forEach((e,i)=>{
-    document.getElementById(['f-ac','f-co','f-de','f-ex'][i]).textContent=S.conductores.filter(c=>nfp(c)&&c.estFin===e).length;
     document.getElementById(['o-ac','o-co','o-de','o-ex'][i]).textContent=S.conductores.filter(c=>nfp(c)&&calcEstOp(c)===e).length;
   });
 }
