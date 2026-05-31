@@ -263,8 +263,9 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
   <div class="tw"><table>
     <thead><tr>
       <th style="width:60px">Móvil</th><th style="width:100px">Flota</th>
-      <th style="width:80px">Subflota</th><th style="width:78px">Categoría</th>
-      <th style="width:90px">Financiero</th><th style="width:88px">Operativo</th>
+      <th style="width:75px">Subflota</th><th style="width:72px">Categoría</th>
+      <th style="width:80px">Placa</th><th style="width:80px">Vehículo</th>
+      <th style="width:88px">Financiero</th><th style="width:85px">Operativo</th>
       <th>Obs.</th>
       <th style="width:35px">W</th><th style="width:35px">K</th><th style="width:35px">S</th>
       <th style="width:34px">Sem❄</th>
@@ -300,6 +301,9 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
     <button class="btn" onclick="openNov('cambio_flota')"><i class="ti ti-arrows-exchange"></i> Cambio de flota</button>
     <button class="btn wa" onclick="openNov('baja_semana')"><i class="ti ti-logout"></i> Baja mitad semana</button>
     <button class="btn ko" onclick="openNov('desactivar')"><i class="ti ti-user-off"></i> Desactivar / Expulsar</button>
+    <button class="btn" onclick="openNov('cambio_categoria')"><i class="ti ti-car"></i> Cambio categoría</button>
+    <button class="btn ok" onclick="openNov('membresia_alta')"><i class="ti ti-star"></i> Alta membresía</button>
+    <button class="btn wa" onclick="openNov('membresia_baja')"><i class="ti ti-star-off"></i> Baja membresía</button>
   </div>
   <div id="pend-prox" style="margin-bottom:10px"></div>
   <div class="tw"><table>
@@ -530,6 +534,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
     <div id="nov-actual" style="font-size:11px;color:var(--g600);margin-bottom:8px;min-height:15px"></div>
     <div id="av-baja" class="ibox sa" style="display:none"><i class="ti ti-info-circle"></i> <strong>Baja mitad semana:</strong> Fin=CONGELADO esta semana, Op=ACTIVO si hizo servicios. Próxima → DESACTIVADO.</div>
     <div id="av-prox" class="ibox pu" style="display:none"><i class="ti ti-calendar"></i> <strong>Aeropuerto:</strong> Si es próxima semana, indica la fecha de inicio exacta.</div>
+    <div id="av-prox-lunes" class="ibox in" style="display:none"><i class="ti ti-clock"></i> <strong>Entra en vigor el próximo lunes.</strong> Este cambio se registra ahora pero se aplica en el siguiente reporte.</div>
     <div class="fg"><label>Flota</label>
       <select id="nov-flota" onchange="updSubsNov()">
         <option>AEROPUERTO</option><option>URBANO</option><option>AEROLINEA</option>
@@ -537,9 +542,17 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
       </select>
     </div>
     <div class="fg"><label>Subflota</label><select id="nov-sub"></select></div>
+    <div class="fg" id="nov-vehiculo-g" style="display:none">
+      <label>Datos del vehículo</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div><label style="font-size:10px;color:var(--g600)">Placa</label><input type="text" id="nov-placa" placeholder="Ej: ABC-123" style="text-transform:uppercase"></div>
+        <div><label style="font-size:10px;color:var(--g600)">Tipo de vehículo</label><input type="text" id="nov-tipo-vehiculo" placeholder="Ej: Sedan, SUV, Van"></div>
+      </div>
+    </div>
     <div class="fg" id="nov-cat-g" style="display:none">
-      <label>Categoría vehículo (solo Aeropuerto)</label>
+      <label>Categoría (Aeropuerto) — determina tarifa de membresía</label>
       <select id="nov-cat"><option>Lite</option><option>Confort</option><option>Confort XL</option><option>XL</option><option>Van</option></select>
+      <div id="nov-cat-tarifa" style="font-size:10px;color:var(--g600);margin-top:3px"></div>
     </div>
     <div class="fg" id="nov-ant-g" style="display:none"><label>Flota anterior</label>
       <select id="nov-fant" onchange="updSubsNovAnt()">
@@ -764,11 +777,14 @@ function mapC(r){
   return{
     id:r.id,movil:r.movil,flota:r.flota,sub:r.subflota||'—',cat:r.categoria_vehiculo||'',
     cliente:r.cliente||'AFILIADO',esMem:r.es_membresia||false,
+    fechaIniMem:r.fecha_inicio_membresia||null,fechaFinMem:r.fecha_fin_membresia||null,
     estFin:r.estado_fin||'ACTIVO',estOp:r.estado_op||'ACTIVO',
     obs:r.observaciones||'',motivoSalida:r.motivo_salida||null,
     sc:r.semanas_congelado||0,bajaSem:r.baja_semana||false,
     esNuevo:r.es_nuevo||false,semSinSvc:r.semanas_sin_servicio||0,
     fechaIniSvc:r.fecha_inicio_servicio||null,
+    placa:r.placa||'',tipoVehiculo:r.tipo_vehiculo||'',
+    flotaAnt:r.flota_anterior||'',subfloAnt:r.subflota_anterior||'',catAnt:r.categoria_anterior||'',
     wari:r.wari||0,kusi:r.kusi||0,sky:r.sky||0
   };
 }
@@ -776,10 +792,15 @@ function mapC(r){
 async function saveC(c){
   try{
     const d={movil:c.movil,flota:c.flota,subflota:c.sub,categoria_vehiculo:c.cat||null,
-      cliente:c.cliente,es_membresia:c.esMem,estado_fin:c.estFin,estado_op:calcEstOp(c),
+      cliente:c.cliente,es_membresia:c.esMem,
+      fecha_inicio_membresia:c.fechaIniMem||null,fecha_fin_membresia:c.fechaFinMem||null,
+      estado_fin:c.estFin,estado_op:calcEstOp(c),
       observaciones:c.obs,motivo_salida:c.motivoSalida,semanas_congelado:c.sc,
       baja_semana:c.bajaSem,es_nuevo:c.esNuevo,semanas_sin_servicio:c.semSinSvc||0,
-      fecha_inicio_servicio:c.fechaIniSvc||null,wari:c.wari||0,kusi:c.kusi||0,sky:c.sky||0,activo:true};
+      fecha_inicio_servicio:c.fechaIniSvc||null,
+      placa:c.placa||null,tipo_vehiculo:c.tipoVehiculo||null,
+      flota_anterior:c.flotaAnt||null,subflota_anterior:c.subfloAnt||null,categoria_anterior:c.catAnt||null,
+      wari:c.wari||0,kusi:c.kusi||0,sky:c.sky||0,activo:true};
     if(c.id)await sb.from('conductores').update(d).eq('id',c.id);
     else{const{data:r}=await sb.from('conductores').insert(d).select().single();if(r)c.id=r.id;}
     syncMsg('✓ Guardado');
@@ -898,7 +919,8 @@ function calcEstOp(c){
 function calcEstFinProp(c){
   if(c.flota==='FLOTA PROPIA')return'FLOTA PROPIA';
   if(PLAZAS.includes(c.flota))return c.estFin;
-  if(['DESACTIVADO','EXPULSADO'].includes(c.estFin))return c.estFin;
+  if(c.estFin==='DESACTIVADO')return'DESACTIVADO';
+  if(c.estFin==='EXPULSADO')return'DESACTIVADO';
   const p=S.permisos.find(x=>x.movil==c.movil);
   const ss=S.saludSeg.find(x=>x.movil==c.movil);
   const total=svcs(c);
@@ -1088,28 +1110,32 @@ function renderPadron(){
   const sub=document.getElementById('p-sub').value;
   const est=document.getElementById('p-est').value;
   let data=S.conductores.filter(c=>c.estFin!=='PENDIENTE_PROX');
-  if(search)data=data.filter(c=>c.movil.toLowerCase().includes(search));
+  if(search)data=data.filter(c=>c.movil.toLowerCase().includes(search)||(c.placa||'').toLowerCase().includes(search));
   if(fl)data=data.filter(c=>c.flota===fl);
   if(sub)data=data.filter(c=>c.sub===sub);
   if(est)data=data.filter(c=>c.estFin===est);
   document.getElementById('p-cnt').textContent=`${data.length} conductores`;
   const alM=new Set(alPend().map(a=>a.movil));
   const tbody=document.getElementById('padron-tb');
-  if(!data.length){tbody.innerHTML=`<tr><td colspan="11"><div class="empty"><i class="ti ti-users"></i>Sin resultados</div></td></tr>`;return;}
+  if(!data.length){tbody.innerHTML=`<tr><td colspan="13"><div class="empty"><i class="ti ti-users"></i>Sin resultados</div></td></tr>`;return;}
   tbody.innerHTML=data.map(c=>{
     const al=alM.has(c.movil);
     const esFP=c.flota==='FLOTA PROPIA';
-    const isPl=PLAZAS.includes(c.flota);
     const ss=S.saludSeg.find(x=>x.movil==c.movil);
     const estOp=calcEstOp(c);
     const tarifa=c.flota==='AEROPUERTO'&&c.cat?getTarifa(c.cat):'';
+    // Estado financiero: expulsado se muestra como desactivado
+    const estFinMostrar=c.estFin==='EXPULSADO'?'DESACTIVADO':c.estFin;
+    const estFinClass=esFP?'fp':estFinMostrar.toLowerCase();
     return `<tr class="${al?'al':''}">
       <td><a href="#" onclick="verHist('${c.movil}');return false" style="color:var(--db);font-weight:600;text-decoration:none">${c.movil}</a>${al?' <i class="ti ti-alert-triangle" style="color:var(--dr);font-size:9px"></i>':''}</td>
-      <td style="font-size:10px">${c.flota}${c.esMem?'<span class="b me" style="font-size:7px;margin-left:2px">M</span>':''}</td>
+      <td style="font-size:10px">${c.flota}${c.esMem?'<span class="b me" style="font-size:7px;margin-left:2px">MEM</span>':''}</td>
       <td><span class="b sb">${c.sub||'—'}</span></td>
       <td>${c.cat?`<span class="b ca" style="font-size:8px">${c.cat}</span>${tarifa?`<div style="font-size:8px;color:var(--g400)">${tarifa}</div>`:''}`:''}</td>
+      <td style="font-size:10px;color:var(--g600)">${c.placa||'—'}</td>
+      <td style="font-size:10px;color:var(--g600)">${c.tipoVehiculo||'—'}</td>
       <td>
-        <span class="b ${esFP?'fp':c.estFin.toLowerCase()}">${esFP?'FP':c.estFin}</span>
+        <span class="b ${estFinClass}">${esFP?'FP':estFinMostrar}</span>
         ${ss?'<span class="b sa" style="font-size:7px;margin-left:1px">S</span>':''}
         ${c.bajaSem?'<span class="b co" style="font-size:7px;margin-left:1px">baja</span>':''}
         ${c.esNuevo?'<span class="b nv" style="font-size:7px;margin-left:1px">nuevo</span>':''}
@@ -1841,15 +1867,25 @@ function updSubsNovAnt(){
 
 function openNov(tipo){
   document.getElementById('nov-tipo').value=tipo;
-  ['nov-movil','nov-obs'].forEach(id=>document.getElementById(id).value='');
+  ['nov-movil','nov-obs','nov-placa','nov-tipo-vehiculo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('nov-actual').innerHTML='';
-  ['av-baja','av-prox'].forEach(id=>document.getElementById(id).style.display='none');
+  ['av-baja','av-prox','av-prox-lunes'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   document.getElementById('nov-mot-g').style.display=tipo==='desactivar'?'block':'none';
   document.getElementById('nov-ant-g').style.display=['cambio_flota','baja_semana'].includes(tipo)?'block':'none';
   document.getElementById('nov-sant-g').style.display=tipo==='cambio_flota'?'block':'none';
   document.getElementById('nov-fecha-g').style.display='none';
   document.getElementById('av-baja').style.display=tipo==='baja_semana'?'block':'none';
-  const t={nuevo:'Nuevo ingreso',reactivacion:'Reactivación',cambio_flota:'Cambio de flota',baja_semana:'Baja a mitad de semana',desactivar:'Desactivar / Expulsar'};
+  // Campos vehículo
+  const showVeh=['nuevo','reactivacion','cambio_flota','cambio_categoria'].includes(tipo);
+  const vehG=document.getElementById('nov-vehiculo-g');if(vehG)vehG.style.display=showVeh?'block':'none';
+  const catG=document.getElementById('nov-cat-g');if(catG)catG.style.display=tipo==='cambio_categoria'?'block':'none';
+  // Aviso próximo lunes
+  const proxL=['cambio_flota','cambio_categoria','membresia_alta','membresia_baja'].includes(tipo);
+  const avL=document.getElementById('av-prox-lunes');if(avL)avL.style.display=proxL?'block':'none';
+  const t={nuevo:'Nuevo ingreso',reactivacion:'Reactivación',cambio_flota:'Cambio de flota',
+    baja_semana:'Baja a mitad de semana',desactivar:'Desactivar / Expulsar',
+    cambio_categoria:'Cambio de categoría — Aeropuerto',
+    membresia_alta:'Alta membresía urbana',membresia_baja:'Baja membresía urbana'};
   document.getElementById('nov-tit').textContent=t[tipo]||tipo;
   updSubsNov();updSubsNovAnt();
   document.getElementById('m-novedad').style.display='flex';
@@ -1877,22 +1913,63 @@ async function guardarNovedad(){
   const motivo=document.getElementById('nov-mot')?.value;
   const obs=document.getElementById('nov-obs').value;
   const fechaIni=document.getElementById('nov-fecha')?.value;
+  const placa=(document.getElementById('nov-placa')?.value||'').toUpperCase();
+  const tipoVehiculo=document.getElementById('nov-tipo-vehiculo')?.value||'';
   const n={movil,tipo,flota,sub,cat,flotaAnt:['cambio_flota','baja_semana'].includes(tipo)?flotaAnt:null,subAnt:tipo==='cambio_flota'?subAnt:null,motivo:tipo==='desactivar'?motivo:null,obs,fecha:new Date().toLocaleDateString('es-PE')};
   S.novedades.push(n);await saveNov(n);
   const c=S.conductores.find(x=>x.movil==movil);
-  const esProx=flota==='AEROPUERTO'&&fechaIni&&fechaIni>S.semanaInicio;
+  // Lógica de cuándo entra en vigor
+  const esProxLunes=['cambio_flota','cambio_categoria','membresia_alta','membresia_baja'].includes(tipo);
+  const esProxAero=flota==='AEROPUERTO'&&fechaIni&&fechaIni>S.semanaInicio;
+
   if(tipo==='nuevo'){
     if(!c){
-      const nc={movil,flota,sub,cat,cliente:document.getElementById('nov-cli').value,estFin:esProx?'PENDIENTE_PROX':'ACTIVO',obs:'Nuevo sem.'+S.semana,wari:0,kusi:0,sky:0,sc:0,bajaSem:false,esMem:sub==='Membresía',esNuevo:true,semSinSvc:0,motivoSalida:null};
+      const nc={movil,flota,sub,cat,placa,tipoVehiculo,cliente:document.getElementById('nov-cli').value,
+        estFin:esProxAero?'PENDIENTE_PROX':'ACTIVO',obs:'Nuevo sem.'+S.semana,
+        wari:0,kusi:0,sky:0,sc:0,bajaSem:false,esMem:sub==='Membresía',
+        esNuevo:true,semSinSvc:0,motivoSalida:null,flotaAnt:'',subfloAnt:'',catAnt:''};
       S.conductores.push(nc);await saveC(nc);
     }
   } else if(tipo==='reactivacion'&&c){
-    if(esProx){c.estFin='PENDIENTE_PROX';c.obs='Reactivación desde '+fechaIni;}
-    else{c.estFin='ACTIVO';c.sub=sub;c.cat=cat||c.cat;c.sc=0;c.bajaSem=false;c.obs='Reactivado sem.'+S.semana;}
+    // Aeropuerto siempre próximo lunes con permiso automático
+    if(flota==='AEROPUERTO'){
+      c.estFin='PENDIENTE_PROX';
+      c.obs=`Reactivación Aeropuerto desde ${fechaIni||'próximo lunes'} — permiso automático lunes (accesos martes)`;
+      // Permiso automático para el lunes
+      const p={movil,tipo:'Reactivación — sin acceso LAP lunes',obs:'Accesos se habilitan el martes',inicio:S.semanaInicio,fin:S.semanaInicio,dias:1};
+      S.permisos.push(p);await saveP(p);
+    } else {
+      // Aerolíneas, Plazas, Urbano → mismo lunes
+      c.estFin='ACTIVO';c.sub=sub;c.cat=cat||c.cat;
+      if(placa)c.placa=placa;if(tipoVehiculo)c.tipoVehiculo=tipoVehiculo;
+      c.sc=0;c.bajaSem=false;c.obs='Reactivado sem.'+S.semana;
+    }
+    if(placa)c.placa=placa;if(tipoVehiculo)c.tipoVehiculo=tipoVehiculo;
     await saveC(c);
-  } else if(tipo==='baja_semana'&&c){c.estFin='CONGELADO';c.bajaSem=true;c.obs='Baja a mitad de semana';await saveC(c);}
-  else if(tipo==='cambio_flota'&&c){c.obs=`Cambio a ${flota}·${sub} desde ${flotaAnt}·${subAnt}`;}
-  else if(tipo==='desactivar'&&c){
+  } else if(tipo==='baja_semana'&&c){
+    c.estFin='CONGELADO';c.bajaSem=true;c.obs='Baja a mitad de semana';await saveC(c);
+  } else if(tipo==='cambio_flota'&&c){
+    // Entra próximo lunes
+    c.flotaAnt=c.flota;c.subfloAnt=c.sub;c.catAnt=c.cat;
+    c.obs=`Cambio a ${flota}·${sub} desde ${flotaAnt}·${subAnt} — efectivo próximo lunes`;
+    if(placa)c.placa=placa;if(tipoVehiculo)c.tipoVehiculo=tipoVehiculo;
+    await saveC(c);
+  } else if(tipo==='cambio_categoria'&&c){
+    // Entra próximo lunes — guardar categoría anterior
+    c.catAnt=c.cat;
+    c.obs=`Cambio categoría: ${c.cat} → ${cat} · Nueva tarifa: S/${TARIFAS[cat]||'—'} — efectivo próximo lunes`;
+    c.cat=cat; // se aplica en próximo cierre
+    if(placa)c.placa=placa;if(tipoVehiculo)c.tipoVehiculo=tipoVehiculo;
+    await saveC(c);
+  } else if(tipo==='membresia_alta'&&c){
+    // Entra próximo lunes
+    c.obs=`Alta membresía urbana — efectivo próximo lunes`;
+    await saveC(c);
+  } else if(tipo==='membresia_baja'&&c){
+    // Entra próximo lunes
+    c.obs=`Baja membresía urbana — efectivo próximo lunes`;
+    await saveC(c);
+  } else if(tipo==='desactivar'&&c){
     c.estFin=obs.toLowerCase().includes('expul')||motivo==='Mal comportamiento'?'EXPULSADO':'DESACTIVADO';
     c.motivoSalida=motivo;c.obs=obs||motivo;await saveC(c);
   }
