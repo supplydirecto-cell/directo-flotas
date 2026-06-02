@@ -2119,9 +2119,7 @@ async function cargarExcel(plat,tipo,input){
     let rows=[];
     if(file.name.endsWith('.csv')){
       const txt=new TextDecoder('utf-8').decode(buf);
-      rows=txt.split(/
-?
-/).filter(Boolean).map(l=>l.split(',').map(v=>v.trim().replace(/"/g,'')));
+      rows=txt.split(/\r?\n/).filter(Boolean).map(l=>l.split(',').map(v=>v.trim().replace(/"/g,'')));
     } else {
       // Usar SheetJS si está disponible, sino parseo simple CSV
       if(typeof XLSX!=='undefined'){
