@@ -6,6 +6,7 @@
 <title>Directo · Gestor de Flotas</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -236,7 +237,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
   </div>
   <div style="background:var(--dbl);border:1px solid #B5D4F4;border-radius:var(--rl);padding:10px 14px">
     <div style="font-size:11px;font-weight:600;color:var(--dbd);margin-bottom:3px">
-      <i class="ti ti-building"></i> Flota propia — Financiero: FLOTA PROPIA · Operativo: por servicios
+      <i class="ti ti-building"></i> FLIT — Financiero: FLIT · Operativo: por servicios (sin desactivación automática)
     </div>
     <div id="fp-res" style="font-size:11px;color:#185FA5"></div>
   </div>
@@ -248,8 +249,8 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
     <div class="sbox"><i class="ti ti-search" style="color:var(--db)"></i><input type="text" placeholder="Buscar móvil..." id="p-search" oninput="renderPadron()"></div>
     <select class="fsel" id="p-flota" onchange="updSubsFlt();renderPadron()">
       <option value="">Todas las flotas</option>
-      <option>AEROPUERTO</option><option>URBANO</option><option>AEROLINEA</option>
-      <option>JOCKEY</option><option>BELLAVISTA</option><option>FLOTA PROPIA</option>
+      <option>AEROPUERTO</option><option>URBANO</option><option>AEROLINEAS</option>
+      <option>PLAZAS</option><option>FLIT</option>
     </select>
     <select class="fsel" id="p-sub" onchange="renderPadron()"><option value="">Todas las subflotas</option></select>
     <select class="fsel" id="p-est" onchange="renderPadron()">
@@ -323,8 +324,8 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
       <div style="font-size:11px;color:var(--g600)">Sin cruce de servicios. El counter reporta altas y bajas por mensaje.</div>
     </div>
     <div style="display:flex;gap:7px">
-      <button class="btn ok" onclick="openPlazas('JOCKEY','ingreso')"><i class="ti ti-plus"></i> Alta Jockey</button>
-      <button class="btn ok" onclick="openPlazas('BELLAVISTA','ingreso')"><i class="ti ti-plus"></i> Alta Bellavista</button>
+      <button class="btn ok" onclick="openPlazas('Jockey Plaza','ingreso')"><i class="ti ti-plus"></i> Alta Jockey</button>
+      <button class="btn ok" onclick="openPlazas('Bellavista','ingreso')"><i class="ti ti-plus"></i> Alta Bellavista</button>
       <button class="btn ko" onclick="openPlazas('','baja')"><i class="ti ti-minus"></i> Baja</button>
     </div>
   </div>
@@ -356,47 +357,75 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
 <!-- SERVICIOS -->
 <div id="tab-servicios" class="tab">
   <div class="ibox in" style="margin-bottom:13px">
-    <i class="ti ti-info-circle"></i> Pre-data durante la semana · Data final el lunes antes de 12pm ·
-    Corrección operativa el lunes en la noche. <strong>Plazas no participa en el cruce.</strong>
+    <i class="ti ti-info-circle"></i> Sube Excel con columnas <strong>Móvil | Servicios</strong> por plataforma ·
+    Pre-data durante la semana · Data final el lunes antes de 12pm · <strong>Plazas y Flit no participan en el cruce.</strong>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+  <div style="margin-bottom:10px;padding:9px 13px;background:var(--g50);border-radius:var(--r);border:1px solid var(--g200);font-size:11px;color:var(--g600)">
+    <strong style="color:var(--g800)">Jetsmart</strong> va incluido en Wari · <strong style="color:var(--g800)">Latam y Sky</strong> van en routing (se suben por separado)
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:16px">
     <div>
-      <div style="font-size:11px;font-weight:600;margin-bottom:5px">Wari</div>
-      <div class="uz pre" onclick="simCarga('wari','pre')" id="z-wari-pre" style="padding:12px;margin-bottom:5px">
-        <i class="ti ti-database" style="font-size:20px;display:block;margin-bottom:4px;opacity:.5"></i>
-        <span style="font-size:10px" id="l-wari-pre">Pre-data</span>
-      </div>
-      <div class="uz done" onclick="simCarga('wari','fin')" id="z-wari-fin" style="padding:12px">
-        <i class="ti ti-upload" style="font-size:20px;display:block;margin-bottom:4px;opacity:.5"></i>
-        <span style="font-size:10px" id="l-wari-fin">Data final</span>
-      </div>
+      <div style="font-size:11px;font-weight:600;margin-bottom:5px">Wari <span style="font-size:9px;color:var(--g400);font-weight:400">(+ Jetsmart)</span></div>
+      <label class="uz pre" style="padding:12px;margin-bottom:5px;display:block;cursor:pointer">
+        <input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="cargarExcel('wari','pre',this)">
+        <i class="ti ti-database" style="font-size:18px;display:block;margin-bottom:3px;opacity:.5"></i>
+        <span style="font-size:10px" id="l-wari-pre">Pre-data · subir Excel</span>
+      </label>
+      <label class="uz done" style="padding:12px;display:block;cursor:pointer" id="z-wari-fin">
+        <input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="cargarExcel('wari','fin',this)">
+        <i class="ti ti-upload" style="font-size:18px;display:block;margin-bottom:3px;opacity:.5"></i>
+        <span style="font-size:10px" id="l-wari-fin">Data final · subir Excel</span>
+      </label>
       <div class="pg"><div class="pgf" id="pg-wari"></div></div>
+      <div id="res-wari" style="font-size:10px;color:var(--g600);margin-top:3px"></div>
     </div>
     <div>
       <div style="font-size:11px;font-weight:600;margin-bottom:5px">Kusi</div>
-      <div class="uz pre" onclick="simCarga('kusi','pre')" id="z-kusi-pre" style="padding:12px;margin-bottom:5px">
-        <i class="ti ti-database" style="font-size:20px;display:block;margin-bottom:4px;opacity:.5"></i>
-        <span style="font-size:10px" id="l-kusi-pre">Pre-data</span>
-      </div>
-      <div class="uz done" onclick="simCarga('kusi','fin')" id="z-kusi-fin" style="padding:12px">
-        <i class="ti ti-upload" style="font-size:20px;display:block;margin-bottom:4px;opacity:.5"></i>
-        <span style="font-size:10px" id="l-kusi-fin">Data final</span>
-      </div>
+      <label class="uz pre" style="padding:12px;margin-bottom:5px;display:block;cursor:pointer">
+        <input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="cargarExcel('kusi','pre',this)">
+        <i class="ti ti-database" style="font-size:18px;display:block;margin-bottom:3px;opacity:.5"></i>
+        <span style="font-size:10px" id="l-kusi-pre">Pre-data · subir Excel</span>
+      </label>
+      <label class="uz done" style="padding:12px;display:block;cursor:pointer" id="z-kusi-fin">
+        <input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="cargarExcel('kusi','fin',this)">
+        <i class="ti ti-upload" style="font-size:18px;display:block;margin-bottom:3px;opacity:.5"></i>
+        <span style="font-size:10px" id="l-kusi-fin">Data final · subir Excel</span>
+      </label>
       <div class="pg"><div class="pgf" id="pg-kusi"></div></div>
+      <div id="res-kusi" style="font-size:10px;color:var(--g600);margin-top:3px"></div>
     </div>
     <div>
-      <div style="font-size:11px;font-weight:600;margin-bottom:5px">Sky / Latam / Jetsmart</div>
-      <div class="uz pre" onclick="simCarga('sky','pre')" id="z-sky-pre" style="padding:12px;margin-bottom:5px">
-        <i class="ti ti-database" style="font-size:20px;display:block;margin-bottom:4px;opacity:.5"></i>
-        <span style="font-size:10px" id="l-sky-pre">Pre-data</span>
-      </div>
-      <div class="uz done" onclick="simCarga('sky','fin')" id="z-sky-fin" style="padding:12px">
-        <i class="ti ti-upload" style="font-size:20px;display:block;margin-bottom:4px;opacity:.5"></i>
-        <span style="font-size:10px" id="l-sky-fin">Data final</span>
-      </div>
+      <div style="font-size:11px;font-weight:600;margin-bottom:5px">Latam <span style="font-size:9px;color:var(--g400);font-weight:400">(routing)</span></div>
+      <label class="uz pre" style="padding:12px;margin-bottom:5px;display:block;cursor:pointer">
+        <input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="cargarExcel('latam','pre',this)">
+        <i class="ti ti-database" style="font-size:18px;display:block;margin-bottom:3px;opacity:.5"></i>
+        <span style="font-size:10px" id="l-latam-pre">Pre-data · subir Excel</span>
+      </label>
+      <label class="uz done" style="padding:12px;display:block;cursor:pointer" id="z-latam-fin">
+        <input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="cargarExcel('latam','fin',this)">
+        <i class="ti ti-upload" style="font-size:18px;display:block;margin-bottom:3px;opacity:.5"></i>
+        <span style="font-size:10px" id="l-latam-fin">Data final · subir Excel</span>
+      </label>
+      <div class="pg"><div class="pgf" id="pg-latam"></div></div>
+      <div id="res-latam" style="font-size:10px;color:var(--g600);margin-top:3px"></div>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:600;margin-bottom:5px">Sky <span style="font-size:9px;color:var(--g400);font-weight:400">(routing)</span></div>
+      <label class="uz pre" style="padding:12px;margin-bottom:5px;display:block;cursor:pointer">
+        <input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="cargarExcel('sky','pre',this)">
+        <i class="ti ti-database" style="font-size:18px;display:block;margin-bottom:3px;opacity:.5"></i>
+        <span style="font-size:10px" id="l-sky-pre">Pre-data · subir Excel</span>
+      </label>
+      <label class="uz done" style="padding:12px;display:block;cursor:pointer" id="z-sky-fin">
+        <input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="cargarExcel('sky','fin',this)">
+        <i class="ti ti-upload" style="font-size:18px;display:block;margin-bottom:3px;opacity:.5"></i>
+        <span style="font-size:10px" id="l-sky-fin">Data final · subir Excel</span>
+      </label>
       <div class="pg"><div class="pgf" id="pg-sky"></div></div>
+      <div id="res-sky" style="font-size:10px;color:var(--g600);margin-top:3px"></div>
     </div>
   </div>
+  <div id="svcs-resumen" style="display:none;margin-bottom:12px"></div>
   <div id="op-corr" style="display:none;margin-bottom:16px">
     <div class="sec"><i class="ti ti-edit" style="color:var(--dp)"></i>Corrección operativa — lunes en la noche</div>
     <div class="ibox pu"><i class="ti ti-info-circle"></i> Solo modifica el estado operativo. El financiero ya fue enviado y no se toca.</div>
@@ -433,7 +462,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
       <div><div style="font-size:10px;color:var(--g600);margin-bottom:3px">Semana</div>
         <select class="fsel" id="exp-sem"><option value="actual">Semana actual</option></select></div>
       <div><div style="font-size:10px;color:var(--g600);margin-bottom:3px">Flota</div>
-        <select class="fsel" id="exp-flt"><option value="all">Todas</option><option>AEROPUERTO</option><option>URBANO</option><option>AEROLINEA</option><option>JOCKEY</option><option>BELLAVISTA</option></select></div>
+        <select class="fsel" id="exp-flt"><option value="all">Todas</option><option>AEROPUERTO</option><option>URBANO</option><option>AEROLINEAS</option><option>PLAZAS</option><option>FLIT</option></select></div>
       <div><div style="font-size:10px;color:var(--g600);margin-bottom:3px">N° liquidación</div>
         <input type="text" class="fsel" id="exp-liq" placeholder="Ej: LIQ-2025-22" style="width:170px"></div>
     </div>
@@ -481,7 +510,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
       <select class="fsel" id="ind-sem" onchange="renderInd()"><option value="all">Todas las semanas</option></select>
       <select class="fsel" id="ind-flt" onchange="updSubsInd();renderInd()">
         <option value="all">Todas las flotas</option>
-        <option>AEROPUERTO</option><option>URBANO</option><option>AEROLINEA</option><option>JOCKEY</option><option>BELLAVISTA</option>
+        <option>AEROPUERTO</option><option>URBANO</option><option>AEROLINEAS</option><option>PLAZAS</option><option>FLIT</option>
       </select>
       <select class="fsel" id="ind-sub" onchange="renderInd()"><option value="all">Todas las subflotas</option></select>
       <select class="fsel" id="ind-tipo" onchange="renderInd()">
@@ -536,8 +565,8 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
     <div id="av-prox-lunes" class="ibox in" style="display:none"><i class="ti ti-clock"></i> <strong>Entra en vigor el próximo lunes.</strong> Este cambio se registra ahora pero se aplica en el siguiente reporte.</div>
     <div class="fg"><label>Flota</label>
       <select id="nov-flota" onchange="updSubsNov()">
-        <option>AEROPUERTO</option><option>URBANO</option><option>AEROLINEA</option>
-        <option>JOCKEY</option><option>BELLAVISTA</option><option>FLOTA PROPIA</option>
+        <option>AEROPUERTO</option><option>URBANO</option><option>AEROLINEAS</option>
+        <option>PLAZAS</option><option>FLIT</option>
       </select>
     </div>
     <div class="fg"><label>Subflota</label><select id="nov-sub"></select></div>
@@ -555,8 +584,8 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
     </div>
     <div class="fg" id="nov-ant-g" style="display:none"><label>Flota anterior</label>
       <select id="nov-fant" onchange="updSubsNovAnt()">
-        <option>AEROPUERTO</option><option>URBANO</option><option>AEROLINEA</option>
-        <option>JOCKEY</option><option>BELLAVISTA</option><option>FLOTA PROPIA</option>
+        <option>AEROPUERTO</option><option>URBANO</option><option>AEROLINEAS</option>
+        <option>PLAZAS</option><option>FLIT</option>
       </select>
     </div>
     <div class="fg" id="nov-sant-g" style="display:none"><label>Subflota anterior</label><select id="nov-sant"></select></div>
@@ -572,7 +601,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
       <label>Fecha de inicio (si es próxima semana)</label>
       <input type="date" id="nov-fecha">
     </div>
-    <div class="fg"><label>Cliente</label><select id="nov-cli"><option>AFILIADO</option><option>FLOTA PROPIA</option></select></div>
+    <div class="fg"><label>Cliente</label><select id="nov-cli"><option>AFILIADO</option><option>FLIT</option></select></div>
     <div class="fg"><label>Observación</label><textarea id="nov-obs" placeholder="Motivo o detalle..."></textarea></div>
     <div class="ma">
       <button class="btn" onclick="cm('m-novedad')">Cancelar</button>
@@ -586,7 +615,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
     <h3 id="pl-tit">Registro Plazas</h3>
     <input type="hidden" id="pl-tipo">
     <div class="fg"><label>Base</label>
-      <select id="pl-base"><option value="JOCKEY">Jockey Plaza</option><option value="BELLAVISTA">Bellavista</option></select>
+      <select id="pl-base"><option value="Jockey Plaza">Jockey Plaza</option><option value="Bellavista">Bellavista</option></select>
     </div>
     <div class="fg"><label>Móviles (uno por línea o por coma)</label>
       <textarea id="pl-moviles" style="min-height:78px" placeholder="301&#10;302&#10;450"></textarea>
@@ -704,17 +733,31 @@ const sb=supabase.createClient(SURL,SKEY);
 // CONSTANTES
 // =============================================
 const ADMIN_PIN='1234';
-const PLAZAS=['JOCKEY','BELLAVISTA'];
-const AUTO_DESACT=['URBANO','AEROLINEA'];
+const PLAZAS=['PLAZAS'];
+const FLIT=['FLIT'];
+const AUTO_DESACT=['URBANO','AEROLINEAS'];
+const MEM_TURNO=['Membresía Diurna','Membresía Nocturna'];
 const SUBFLOTAS={
-  'AEROPUERTO':['Diurno','Nocturno','Regular','Van'],
-  'URBANO':['Partner','Regular','Membresía'],
-  'AEROLINEA':['Latam','Sky','Jetsmart'],
-  'JOCKEY':['—'],'BELLAVISTA':['—'],'FLOTA PROPIA':['—']
+  'AEROPUERTO':['Membresía Diurna','Membresía Nocturna','Aeropuerto Regular','Aeropuerto Van'],
+  'URBANO':['Urbano Regular','Urbano Partner','Membresía Urbano'],
+  'AEROLINEAS':['Latam','Sky'],
+  'PLAZAS':['Bellavista','Jockey Plaza'],
+  'FLIT':['—']
 };
-const TARIFAS={'Lite':265,'Confort':240,'Confort XL':235,'XL':240,'Van':240};
-const PORC={'Van':22,'default':27.9};
+// Tarifas Aeropuerto por [subflota][categoria] = [membresia, porcentaje]
+const TARIFAS_AERO={
+  'Aeropuerto Regular':{'Lite':[265,27.9],'Confort':[240,27.9],'Confort XL':[235,27.9],'XL':[240,27.9]},
+  'Membresía Diurna':{'Lite':[315,27.9],'Confort':[290,27.9],'Confort XL':[285,27.9],'XL':[290,27.9]},
+  'Membresía Nocturna':{'Lite':[315,27.9],'Confort':[290,27.9],'Confort XL':[285,27.9],'XL':[290,27.9]},
+  'Aeropuerto Van':{'Van':[240,22]}
+};
+const CATS_AERO=['Lite','Confort','Confort XL','XL'];
 const MOTIVOS=['Problemas personales','Salud','Renovación de vehículo','Accidente','No es rentable','Ganancias bajas','Baja temporada','Maltrato','Mal comportamiento','Otro'];
+function getTarifa(sub,cat){const t=TARIFAS_AERO[sub]?.[cat];return t?'S/'+t[0]+' + '+t[1]+'%':'';}
+function getMembresia(sub,cat){const t=TARIFAS_AERO[sub]?.[cat];return t?t[0]:0;}
+function getCatsParaSub(sub){if(sub==='Aeropuerto Van')return['Van'];return TARIFAS_AERO[sub]?Object.keys(TARIFAS_AERO[sub]):[];}
+function esFlit(c){return FLIT.includes(c.flota);}
+function esPlazas(c){return PLAZAS.includes(c.flota);}
 
 // =============================================
 // ESTADO LOCAL
@@ -724,8 +767,9 @@ let S={
   conductores:[], permisos:[], saludSeg:[], novedades:[],
   plazasMovs:[], historial:[], rol:'ejecutivo',
   alertasDec:{}, pendientesProx:[],
-  servicios:{wari:false,kusi:false,sky:false},
-  predata:{wari:false,kusi:false,sky:false}
+  servicios:{wari:false,kusi:false,latam:false,sky:false},
+  predata:{wari:false,kusi:false,latam:false,sky:false},
+  svcsPorMovil:{} // acumulado de las 4 plataformas
 };
 let estadosRev={}, expTipo='fin', svcsPre=[], alertaActual=null, opcSel=null;
 
@@ -859,20 +903,20 @@ async function saveHistorial(){
 function initDemo(){
   S.semanaInicio=getLunes(new Date()).toISOString().split('T')[0];
   S.conductores=[
-    {movil:'205',flota:'AEROPUERTO',sub:'Van',cat:'Van',cliente:'AFILIADO',estFin:'ACTIVO',obs:'',wari:25,kusi:23,sky:0,sc:0,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
-    {movil:'230',flota:'AEROPUERTO',sub:'Diurno',cat:'Lite',cliente:'AFILIADO',estFin:'CONGELADO',obs:'Sin acceso LAP',wari:9,kusi:0,sky:0,sc:1,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
-    {movil:'838',flota:'AEROPUERTO',sub:'Regular',cat:'Confort',cliente:'AFILIADO',estFin:'CONGELADO',obs:'Sin unidad',wari:0,kusi:0,sky:0,sc:2,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
-    {movil:'550',flota:'AEROPUERTO',sub:'Nocturno',cat:'XL',cliente:'AFILIADO',estFin:'CONGELADO',obs:'Servicio de prueba',wari:0,kusi:0,sky:0,sc:0,bajaSem:false,esMem:false,esNuevo:true,semSinSvc:2,motivoSalida:null},
-    {movil:'301',flota:'URBANO',sub:'Membresía',cat:'',cliente:'AFILIADO',estFin:'ACTIVO',obs:'',wari:8,kusi:5,sky:0,sc:0,bajaSem:false,esMem:true,esNuevo:false,semSinSvc:0,motivoSalida:null},
-    {movil:'302',flota:'URBANO',sub:'Membresía',cat:'',cliente:'AFILIADO',estFin:'CONGELADO',obs:'Choque - taller',wari:0,kusi:0,sky:0,sc:1,bajaSem:false,esMem:true,esNuevo:false,semSinSvc:0,motivoSalida:null},
-    {movil:'405',flota:'URBANO',sub:'Membresía',cat:'',cliente:'AFILIADO',estFin:'CONGELADO',obs:'Salud: fractura tobillo',wari:0,kusi:0,sky:0,sc:2,bajaSem:false,esMem:true,esNuevo:false,semSinSvc:0,motivoSalida:null},
-    {movil:'515',flota:'URBANO',sub:'Partner',cat:'',cliente:'AFILIADO',estFin:'CONGELADO',obs:'Baja miércoles',wari:3,kusi:2,sky:0,sc:0,bajaSem:true,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
-    {movil:'307',flota:'URBANO',sub:'Regular',cat:'',cliente:'AFILIADO',estFin:'ACTIVO',obs:'',wari:3,kusi:4,sky:0,sc:0,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
-    {movil:'127',flota:'AEROLINEA',sub:'Latam',cat:'',cliente:'AFILIADO',estFin:'ACTIVO',obs:'',wari:2,kusi:0,sky:1,sc:0,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
-    {movil:'629',flota:'AEROLINEA',sub:'Sky',cat:'',cliente:'AFILIADO',estFin:'CONGELADO',obs:'',wari:0,kusi:0,sky:0,sc:2,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
-    {movil:'136',flota:'JOCKEY',sub:'—',cat:'',cliente:'AFILIADO',estFin:'ACTIVO',obs:'',wari:0,kusi:0,sky:0,sc:0,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
-    {movil:'401',flota:'BELLAVISTA',sub:'—',cat:'',cliente:'AFILIADO',estFin:'ACTIVO',obs:'',wari:0,kusi:0,sky:0,sc:0,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
-    {movil:'2941',flota:'FLOTA PROPIA',sub:'—',cat:'',cliente:'FLOTA PROPIA',estFin:'FLOTA PROPIA',obs:'',wari:28,kusi:0,sky:0,sc:0,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'205',flota:'AEROPUERTO',sub:'Aeropuerto Van',cat:'Van',cliente:'AFILIADO',estFin:'ACTIVO',obs:'',wari:25,kusi:23,sky:0,sc:0,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'230',flota:'AEROPUERTO',sub:'Membresía Diurna',cat:'Lite',cliente:'AFILIADO',estFin:'CONGELADO',obs:'Sin acceso LAP',wari:9,kusi:0,sky:0,sc:1,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'838',flota:'AEROPUERTO',sub:'Aeropuerto Regular',cat:'Confort',cliente:'AFILIADO',estFin:'CONGELADO',obs:'Sin unidad',wari:0,kusi:0,sky:0,sc:2,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'550',flota:'AEROPUERTO',sub:'Membresía Nocturna',cat:'XL',cliente:'AFILIADO',estFin:'CONGELADO',obs:'Servicio de prueba',wari:0,kusi:0,sky:0,sc:0,bajaSem:false,esMem:false,esNuevo:true,semSinSvc:2,motivoSalida:null},
+    {movil:'301',flota:'URBANO',sub:'Membresía Urbano',cat:'',cliente:'AFILIADO',estFin:'ACTIVO',obs:'',wari:8,kusi:5,sky:0,sc:0,bajaSem:false,esMem:true,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'302',flota:'URBANO',sub:'Membresía Urbano',cat:'',cliente:'AFILIADO',estFin:'CONGELADO',obs:'Choque - taller',wari:0,kusi:0,sky:0,sc:1,bajaSem:false,esMem:true,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'405',flota:'URBANO',sub:'Membresía Urbano',cat:'',cliente:'AFILIADO',estFin:'CONGELADO',obs:'Salud: fractura tobillo',wari:0,kusi:0,sky:0,sc:2,bajaSem:false,esMem:true,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'515',flota:'URBANO',sub:'Urbano Partner',cat:'',cliente:'AFILIADO',estFin:'CONGELADO',obs:'Baja miércoles',wari:3,kusi:2,sky:0,sc:0,bajaSem:true,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'307',flota:'URBANO',sub:'Urbano Regular',cat:'',cliente:'AFILIADO',estFin:'ACTIVO',obs:'',wari:3,kusi:4,sky:0,sc:0,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'127',flota:'AEROLINEAS',sub:'Latam',cat:'',cliente:'AFILIADO',estFin:'ACTIVO',obs:'',wari:2,kusi:0,sky:1,sc:0,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'629',flota:'AEROLINEAS',sub:'Sky',cat:'',cliente:'AFILIADO',estFin:'CONGELADO',obs:'',wari:0,kusi:0,sky:0,sc:2,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'136',flota:'PLAZAS',sub:'Jockey Plaza',cat:'',cliente:'AFILIADO',estFin:'ACTIVO',obs:'',wari:0,kusi:0,sky:0,sc:0,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'401',flota:'PLAZAS',sub:'Bellavista',cat:'',cliente:'AFILIADO',estFin:'ACTIVO',obs:'',wari:0,kusi:0,sky:0,sc:0,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
+    {movil:'2941',flota:'FLIT',sub:'—',cat:'',cliente:'FLIT',estFin:'FLIT',obs:'',wari:28,kusi:0,sky:0,latam:0,sc:0,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null},
   ];
   const hoy=new Date().toISOString().split('T')[0];
   S.permisos=[
@@ -884,8 +928,8 @@ function initDemo(){
     {sem:21,texto:'Sigue en reposo.',fecha:'20/05'}
   ]}];
   S.plazasMovs=[
-    {movil:'136',base:'JOCKEY',tipo:'ingreso',observaciones:'Alta counter sem 20',semana_numero:S.semana},
-    {movil:'401',base:'BELLAVISTA',tipo:'ingreso',observaciones:'Alta counter sem 19',semana_numero:S.semana},
+    {movil:'136',base:'Jockey Plaza',tipo:'ingreso',observaciones:'Alta counter sem 20',semana_numero:S.semana},
+    {movil:'401',base:'Bellavista',tipo:'ingreso',observaciones:'Alta counter sem 19',semana_numero:S.semana},
   ];
   S.historial=[
     {numero_semana:20,movil:'205',flota:'AEROPUERTO',subflota:'Van',categoria_vehiculo:'Van',estado_fin:'ACTIVO',estado_op:'ACTIVO',wari:20,kusi:18,sky:0,observaciones:'',permiso_tipo:null,permiso_inicio:null,permiso_fin:null,permiso_dias:null},
@@ -897,7 +941,7 @@ function initDemo(){
 // =============================================
 // HELPERS
 // =============================================
-function svcs(c){return(c.wari||0)+(c.kusi||0)+(c.sky||0);}
+function svcs(c){return(c.wari||0)+(c.kusi||0)+(c.sky||0)+(c.latam||0);}
 function getLunes(d){const dt=new Date(d);const day=dt.getDay();const diff=dt.getDate()-day+(day===0?-6:1);return new Date(dt.setDate(diff));}
 function fmtF(d){try{return new Date(d+'T12:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'short'});}catch(e){return d||'—';}}
 function getPeriodo(ls){const l=new Date(ls+'T12:00:00');const v=new Date(l);v.setDate(l.getDate()+6);return`${fmtF(ls)} — ${fmtF(v.toISOString().split('T')[0])}`;}
@@ -908,7 +952,7 @@ function getCat(m){const c=S.conductores.find(x=>x.movil==m);return c?c.cat:'';}
 function getTarifa(cat){if(!cat)return'';const mem=TARIFAS[cat]||0;const p=cat==='Van'?22:27.9;return`S/${mem} + ${p}%`;}
 
 function calcEstOp(c){
-  if(c.flota==='FLOTA PROPIA')return svcs(c)>0?'ACTIVO':'CONGELADO';
+  if(FLIT.includes(c.flota))return svcs(c)>0?'ACTIVO':'CONGELADO';
   if(PLAZAS.includes(c.flota))return['DESACTIVADO','EXPULSADO'].includes(c.estFin)?c.estFin:'ACTIVO';
   if(['DESACTIVADO','EXPULSADO'].includes(c.estFin))return c.estFin;
   if(c.bajaSem)return svcs(c)>0?'ACTIVO':'CONGELADO';
@@ -916,7 +960,7 @@ function calcEstOp(c){
 }
 
 function calcEstFinProp(c){
-  if(c.flota==='FLOTA PROPIA')return'FLOTA PROPIA';
+  if(FLIT.includes(c.flota))return'FLIT';
   if(PLAZAS.includes(c.flota))return c.estFin;
   if(c.estFin==='DESACTIVADO')return'DESACTIVADO';
   if(c.estFin==='EXPULSADO')return'DESACTIVADO';
@@ -938,7 +982,7 @@ function calcEstFinProp(c){
 function genAlertas(){
   const al=[];
   S.conductores.forEach(c=>{
-    if(c.flota==='FLOTA PROPIA'||PLAZAS.includes(c.flota))return;
+    if(FLIT.includes(c.flota)||PLAZAS.includes(c.flota))return;
     if(['DESACTIVADO','EXPULSADO'].includes(c.estFin))return;
     const p=S.permisos.find(x=>x.movil==c.movil);
     const ss=S.saludSeg.find(x=>x.movil==c.movil);
@@ -1010,7 +1054,7 @@ function render(){
 }
 
 function updMetrics(){
-  const nfp=c=>c.flota!=='FLOTA PROPIA';
+  const nfp=c=>!FLIT.includes(c.flota);
   // Financiero: EXPULSADO se cuenta como DESACTIVADO
   document.getElementById('f-ac').textContent=S.conductores.filter(c=>nfp(c)&&c.estFin==='ACTIVO').length;
   document.getElementById('f-co').textContent=S.conductores.filter(c=>nfp(c)&&c.estFin==='CONGELADO').length;
@@ -1023,8 +1067,8 @@ function updMetrics(){
 
 function renderChartFlota(){
   const el=document.getElementById('chart-flota');el.innerHTML='';
-  const flotas=['AEROPUERTO','URBANO','AEROLINEA','JOCKEY','BELLAVISTA'];
-  const cols={'AEROPUERTO':'#0057FF','URBANO':'#534AB7','AEROLINEA':'#BA7517','JOCKEY':'#1D9E75','BELLAVISTA':'#A32D2D'};
+  const flotas=['AEROPUERTO','URBANO','AEROLINEAS','PLAZAS','FLIT'];
+  const cols={'AEROPUERTO':'#0057FF','URBANO':'#534AB7','AEROLINEAS':'#BA7517','PLAZAS':'#1D9E75','FLIT':'#534AB7'};
   const max=Math.max(...flotas.map(f=>S.conductores.filter(c=>c.flota===f).length),1);
   flotas.forEach(f=>{
     const cds=S.conductores.filter(c=>c.flota===f);if(!cds.length)return;
@@ -1041,7 +1085,7 @@ function renderAlOp(){
   const el=document.getElementById('al-op');const ops=[];
   S.saludSeg.forEach(s=>{const c=S.conductores.find(x=>x.movil==s.movil);if(c&&svcs(c)===0)ops.push({t:'w',m:`Móvil ${s.movil} — salud desde ${s.inicio||s.fecha_inicio}, 0 servicios`});});
   S.conductores.forEach(c=>{
-    if(c.flota==='FLOTA PROPIA'||PLAZAS.includes(c.flota)||S.saludSeg.find(x=>x.movil==c.movil))return;
+    if(FLIT.includes(c.flota)||PLAZAS.includes(c.flota)||S.saludSeg.find(x=>x.movil==c.movil))return;
     if(c.sc>=2&&c.estFin==='CONGELADO')ops.push({t:'d',m:`Móvil ${c.movil} (${c.flota}·${c.sub}) — ${c.sc} sem congelado`});
     if(c.esNuevo&&c.flota==='AEROPUERTO'&&svcs(c)===0){
       const nsv=c.semSinSvc||0;
@@ -1074,9 +1118,9 @@ function renderMotivosDash(){
 }
 
 function renderFP(){
-  const fp=S.conductores.filter(c=>c.flota==='FLOTA PROPIA');
+  const fp=S.conductores.filter(c=>FLIT.includes(c.flota));
   const actOp=fp.filter(c=>calcEstOp(c)==='ACTIVO').length;
-  document.getElementById('fp-res').textContent=fp.length?`${fp.length} unidades · Operativo: ${actOp} activas en pista · Sin desactivación automática`:'Sin conductores de flota propia';
+  document.getElementById('fp-res').textContent=fp.length?`${fp.length} unidades FLIT · Operativo: ${actOp} activas en pista · Sin desactivación automática`:'Sin unidades FLIT registradas';
 }
 
 function updNavDots(){
@@ -1123,10 +1167,10 @@ function renderPadron(){
   if(!data.length){tbody.innerHTML=`<tr><td colspan="13"><div class="empty"><i class="ti ti-users"></i>Sin resultados</div></td></tr>`;return;}
   tbody.innerHTML=data.map(c=>{
     const al=alM.has(c.movil);
-    const esFP=c.flota==='FLOTA PROPIA';
+    const esFP=FLIT.includes(c.flota);
     const ss=S.saludSeg.find(x=>x.movil==c.movil);
     const estOp=calcEstOp(c);
-    const tarifa=c.flota==='AEROPUERTO'&&c.cat?getTarifa(c.cat):'';
+    const tarifa=c.flota==='AEROPUERTO'&&c.cat&&c.sub?getTarifa(c.sub,c.cat):'';
     // Estado financiero: expulsado se muestra como desactivado
     const estFinMostrar=c.estFin==='EXPULSADO'?'DESACTIVADO':c.estFin;
     const estFinClass=esFP?'fp':estFinMostrar.toLowerCase();
@@ -1237,10 +1281,11 @@ function renderPendProx(){
 // =============================================
 function renderPlazas(){
   ['jk','bv'].forEach((id,i)=>{
-    const flota=['JOCKEY','BELLAVISTA'][i];
-    const cds=S.conductores.filter(c=>c.flota===flota);
+    const subf=['Jockey Plaza','Bellavista'][i];
+    const cds=S.conductores.filter(c=>c.flota==='PLAZAS'&&c.sub===subf);
     const act=cds.filter(c=>c.estFin==='ACTIVO');
     const el=document.getElementById('pl-'+id);
+    if(!el)return;
     el.innerHTML=`<div style="display:flex;gap:6px;margin-bottom:8px"><span class="chip">${cds.length} total</span><span style="font-size:10px;color:var(--dg)">${act.length} activos</span></div>
     ${act.length?`<div style="display:flex;flex-wrap:wrap;gap:5px">${act.map(c=>`<span style="font-size:11px;padding:3px 9px;border-radius:20px;background:var(--dgl);border:1px solid #9FE1CB;color:#0F6E56;cursor:pointer" onclick="verHist('${c.movil}')">${c.movil}</span>`).join('')}</div>`:'<div style="font-size:11px;color:var(--g400)">Sin conductores activos</div>'}`;
   });
@@ -1326,7 +1371,7 @@ function openResolver(aid){
   const c=S.conductores.find(x=>x.movil==a.movil);
   const p=S.permisos.find(x=>x.movil==a.movil);
   const ss=S.saludSeg.find(x=>x.movil==a.movil);
-  const tarifa=a.cat?`· ${getTarifa(a.cat)}`:'';
+  const tarifa=a.cat&&a.sub?`· ${getTarifa(a.sub,a.cat)}`:'';
   document.getElementById('res-tit').innerHTML=`<i class="ti ti-alert-triangle" style="margin-right:6px;color:var(--da)"></i>Resolver — Móvil ${a.movil} · ${a.flota} <span class="b sb">${a.sub}</span>${a.cat?` <span class="b ca">${a.cat}</span>`:''} ${tarifa}`;
   document.getElementById('res-ctx').innerHTML=`<div style="background:var(--g50);border-radius:var(--r);padding:10px 12px;font-size:11px;margin-bottom:10px"><div style="display:flex;gap:12px;flex-wrap:wrap">
     <span><strong>Flota:</strong> ${a.flota}</span><span><strong>Sub:</strong> ${a.sub}</span>
@@ -1451,7 +1496,7 @@ function expReporte(tipo){
     else if(ss)det=`Salud / reposo médico: ${ss.obs||ss.observaciones||''}`;
     if(c.esMem&&c.flota==='URBANO')det+=' [MEMBRESÍA]';
     if(c.motivoSalida)det+=` [Salida: ${c.motivoSalida}]`;
-    const tarifa=c.flota==='AEROPUERTO'&&c.cat?getTarifa(c.cat):'';
+    const tarifa=c.flota==='AEROPUERTO'&&c.cat&&c.sub?getTarifa(c.sub,c.cat):'';
     const estExport=tipo==='op'?calcEstOp(c):c.estFin;
     const pIni=p?.inicio||p?.fecha_inicio||ss?.inicio||ss?.fecha_inicio||'';
     const pFin=p?.fin||p?.fecha_fin||ss?.finEst||ss?.fecha_fin_estimada||'';
@@ -1504,11 +1549,11 @@ function buscarConductor(){
   if(!matches.length){el.innerHTML=`<div class="empty"><i class="ti ti-search"></i>Sin resultados para "${q}"</div>`;return;}
   el.innerHTML=matches.map(c=>{
     const ss=S.saludSeg.find(x=>x.movil==c.movil);
-    const estOp=calcEstOp(c);const esFP=c.flota==='FLOTA PROPIA';
+    const estOp=calcEstOp(c);const esFP=FLIT.includes(c.flota);
     const hist=[...S.historial.filter(h=>h.movil==c.movil)].sort((a,b)=>b.numero_semana-a.numero_semana);
     const permSem=S.permisos.find(p=>p.movil==c.movil);
     const permAno=hist.filter(h=>h.permiso_tipo).length+(permSem?1:0);
-    const tarifa=c.flota==='AEROPUERTO'&&c.cat?getTarifa(c.cat):'';
+    const tarifa=c.flota==='AEROPUERTO'&&c.cat&&c.sub?getTarifa(c.sub,c.cat):'';
     return `<div style="border:1px solid var(--g200);border-radius:var(--rl);overflow:hidden;margin-bottom:12px">
       <div style="padding:11px 14px;background:var(--db);display:flex;align-items:center;justify-content:space-between">
         <div>
@@ -1640,7 +1685,7 @@ function intentarCierre(){
 
 function renderRevP1(){
   const el=document.getElementById('rev-res');el.innerHTML='';
-  ['AEROPUERTO','URBANO','AEROLINEA','JOCKEY','BELLAVISTA','FLOTA PROPIA'].forEach(f=>{
+  ['AEROPUERTO','URBANO','AEROLINEAS','PLAZAS','FLIT'].forEach(f=>{
     const cds=S.conductores.filter(c=>c.flota===f&&c.estFin!=='PENDIENTE_PROX');if(!cds.length)return;
     const act=cds.filter(c=>estadosRev[c.movil]==='ACTIVO').length;
     const con=cds.filter(c=>estadosRev[c.movil]==='CONGELADO').length;
@@ -1666,11 +1711,11 @@ function irP2(){
   document.getElementById('rev-p1').style.display='none';
   document.getElementById('rev-p2').style.display='block';
   const el=document.getElementById('rev-det');el.innerHTML='';
-  ['AEROPUERTO','URBANO','AEROLINEA','JOCKEY','BELLAVISTA','FLOTA PROPIA'].forEach(f=>{
+  ['AEROPUERTO','URBANO','AEROLINEAS','PLAZAS','FLIT'].forEach(f=>{
     const cds=S.conductores.filter(c=>c.flota===f&&c.estFin!=='PENDIENTE_PROX');if(!cds.length)return;
     const rows=cds.map(c=>{
       const total=svcs(c);const estOp=calcEstOp(c);
-      const isPl=PLAZAS.includes(c.flota);const isFP=c.flota==='FLOTA PROPIA';
+      const isPl=PLAZAS.includes(c.flota);const isFP=FLIT.includes(c.flota);
       const p=S.permisos.find(x=>x.movil==c.movil);
       return `<div class="rr">
         <span style="font-size:12px;font-weight:600;width:55px;flex-shrink:0">${c.movil}</span>
@@ -1712,7 +1757,7 @@ async function confirmarCierre(){
   const liq=document.getElementById('ex-liq').value||'';
   syncMsg('⟳ Guardando...');
   S.conductores.forEach(c=>{
-    if(estadosRev[c.movil]&&!PLAZAS.includes(c.flota)&&c.flota!=='FLOTA PROPIA'&&!['EXPULSADO','DESACTIVADO'].includes(c.estFin))
+    if(estadosRev[c.movil]&&!PLAZAS.includes(c.flota)&&!FLIT.includes(c.flota)&&!['EXPULSADO','DESACTIVADO'].includes(c.estFin))
       c.estFin=estadosRev[c.movil];
   });
   await saveHistorial();
@@ -1732,10 +1777,10 @@ async function confirmarCierre(){
   const nl=new Date(S.semanaInicio+'T12:00:00');nl.setDate(nl.getDate()+7);
   S.semanaInicio=nl.toISOString().split('T')[0];
   for(const c of S.conductores){
-    if(c.flota==='FLOTA PROPIA'||PLAZAS.includes(c.flota))continue;
+    if(FLIT.includes(c.flota)||PLAZAS.includes(c.flota))continue;
     if(c.estFin==='CONGELADO'){c.sc=(c.sc||0)+1;}
     const ss=S.saludSeg.find(x=>x.movil==c.movil);
-    if(!ss&&AUTO_DESACT.includes(c.flota)&&c.sc>=3&&c.estFin==='CONGELADO')c.estFin='DESACTIVADO';
+    if(!ss&&AUTO_DESACT.includes(c.flota)&&c.sc>=3&&c.estFin==='CONGELADO')c.estFin='DESACTIVADO'; // URBANO o AEROLINEAS: 3 sem congelado = DESACTIVADO
     c.esNuevo=false;
     await saveC(c);
   }
@@ -1769,7 +1814,7 @@ async function confirmarCierre(){
 function onMovilP(){
   const m=document.getElementById('mp-movil').value.trim();
   const c=S.conductores.find(x=>x.movil==m);
-  const tarifa=c&&c.flota==='AEROPUERTO'&&c.cat?` · ${getTarifa(c.cat)}`:'';
+  const tarifa=c&&c.flota==='AEROPUERTO'&&c.cat&&c.sub?` · ${getTarifa(c.sub,c.cat)}`:'';
   document.getElementById('mp-info').innerHTML=c?`<span style="font-size:11px">${c.flota} <span class="b sb" style="margin-left:3px">${c.sub}</span>${c.cat?` <span class="b ca" style="margin-left:2px">${c.cat}</span>`:''} · Fin: ${c.estFin} · ${svcs(c)} svc${c.esMem?' · <span class="b me">Membresía</span>':''}${tarifa}</span>`:m?'No encontrado':'';
   document.getElementById('av-mem').style.display=c&&c.esMem?'block':'none';
 }
@@ -1857,9 +1902,26 @@ async function cerrarSalud(i){
 
 function updSubsNov(){
   const fl=document.getElementById('nov-flota').value;
+  const tipo=document.getElementById('nov-tipo').value;
   const sel=document.getElementById('nov-sub');sel.innerHTML='';
   (SUBFLOTAS[fl]||[]).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);});
-  document.getElementById('nov-cat-g').style.display=fl==='AEROPUERTO'?'block':'none';
+  const catG=document.getElementById('nov-cat-g');
+  if(catG)catG.style.display=fl==='AEROPUERTO'?'block':'none';
+  sel.onchange=()=>updCatsParaSub();
+  updCatsParaSub();
+}
+
+function updCatsParaSub(){
+  const sub=document.getElementById('nov-sub')?.value;
+  const catSel=document.getElementById('nov-cat');
+  if(!catSel)return;
+  catSel.innerHTML='';
+  const cats=getCatsParaSub(sub);
+  if(!cats.length)(sub==='Aeropuerto Van'?['Van']:CATS_AERO).forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;catSel.appendChild(o);});
+  else cats.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;catSel.appendChild(o);});
+  const tar=document.getElementById('nov-cat-tarifa');
+  if(tar)tar.textContent=catSel.value?'Tarifa: '+getTarifa(sub,catSel.value):'';
+  catSel.onchange=()=>{if(tar)tar.textContent='Tarifa: '+getTarifa(sub,catSel.value);};
 }
 
 function updSubsNovAnt(){
@@ -1934,20 +1996,38 @@ async function guardarNovedad(){
       S.conductores.push(nc);await saveC(nc);
     }
   } else if(tipo==='reactivacion'&&c){
+    // Validar restricción Membresía Diurna/Nocturna → no puede ir a Aeropuerto Regular
+    if(flota==='AEROPUERTO'&&sub==='Aeropuerto Regular'){
+      const histC=S.historial.filter(h=>h.movil==movil);
+      const tuvoMemTurno=histC.some(h=>MEM_TURNO.includes(h.subflota));
+      if(tuvoMemTurno){
+        alert(`⚠️ Móvil ${movil} tiene historial en Membresía Diurna/Nocturna.\nNo puede reactivarse en Aeropuerto Regular.\nSolo puede volver a: Membresía Diurna, Membresía Nocturna o Aeropuerto Van.`);
+        return;
+      }
+    }
+    // Aviso retorno a Membresía Diurna/Nocturna
+    if(flota==='AEROPUERTO'&&MEM_TURNO.includes(sub)){
+      const histC=S.historial.filter(h=>h.movil==movil);
+      const tuvoMemTurno=histC.some(h=>MEM_TURNO.includes(h.subflota));
+      if(tuvoMemTurno&&sub!==histC.find(h=>MEM_TURNO.includes(h.subflota))?.subflota){
+        // Cambio de turno dentro de membresía - OK, solo informar
+      }
+    }
+    // Actualizar vehículo siempre que se informe
+    if(placa)c.placa=placa;if(tipoVehiculo)c.tipoVehiculo=tipoVehiculo;
+    if(cat)c.catAnt=c.cat; // guardar categoría anterior
+    if(cat)c.cat=cat;
     // Aeropuerto siempre próximo lunes con permiso automático
     if(flota==='AEROPUERTO'){
-      c.estFin='PENDIENTE_PROX';
-      c.obs=`Reactivación Aeropuerto desde ${fechaIni||'próximo lunes'} — permiso automático lunes (accesos martes)`;
-      // Permiso automático para el lunes
-      const p={movil,tipo:'Reactivación — sin acceso LAP lunes',obs:'Accesos se habilitan el martes',inicio:S.semanaInicio,fin:S.semanaInicio,dias:1};
+      c.estFin='PENDIENTE_PROX';c.sub=sub;
+      c.obs=`Reactivación Aeropuerto·${sub} desde ${fechaIni||'próximo lunes'} — permiso automático lunes (accesos martes)`;
+      const p={movil,tipo:'Reactivación — sin acceso LAP lunes',obs:'Accesos se habilitan el martes. Categoría: '+(cat||c.cat),inicio:S.semanaInicio,fin:S.semanaInicio,dias:1};
       S.permisos.push(p);await saveP(p);
     } else {
-      // Aerolíneas, Plazas, Urbano → mismo lunes
-      c.estFin='ACTIVO';c.sub=sub;c.cat=cat||c.cat;
-      if(placa)c.placa=placa;if(tipoVehiculo)c.tipoVehiculo=tipoVehiculo;
-      c.sc=0;c.bajaSem=false;c.obs='Reactivado sem.'+S.semana;
+      // Aerolineas, Plazas, Urbano → mismo lunes
+      c.estFin='ACTIVO';c.sub=sub;
+      c.sc=0;c.bajaSem=false;c.obs='Reactivado sem.'+S.semana+(placa?' · Placa: '+placa:'');
     }
-    if(placa)c.placa=placa;if(tipoVehiculo)c.tipoVehiculo=tipoVehiculo;
     await saveC(c);
   } else if(tipo==='baja_semana'&&c){
     c.estFin='CONGELADO';c.bajaSem=true;c.obs='Baja a mitad de semana';await saveC(c);
@@ -1969,8 +2049,9 @@ async function guardarNovedad(){
     c.obs=`Alta membresía urbana — efectivo próximo lunes`;
     await saveC(c);
   } else if(tipo==='membresia_baja'&&c){
-    // Entra próximo lunes
-    c.obs=`Baja membresía urbana — efectivo próximo lunes`;
+    // Entra próximo lunes → pasa a Urbano Regular con 27.9%
+    c.obs=`Baja membresía urbana → pasa a Urbano Regular (27.9%) — efectivo próximo lunes`;
+    // Se marcará como cambio de subflota en el próximo cierre
     await saveC(c);
   } else if(tipo==='desactivar'&&c){
     c.estFin=obs.toLowerCase().includes('expul')||motivo==='Mal comportamiento'?'EXPULSADO':'DESACTIVADO';
@@ -1983,6 +2064,7 @@ function openPlazas(base,tipo){
   document.getElementById('pl-tipo').value=tipo;
   document.getElementById('pl-moviles').value='';
   document.getElementById('pl-obs').value='';
+  // base ahora es 'Jockey Plaza' o 'Bellavista'
   if(base)document.getElementById('pl-base').value=base;
   document.getElementById('pl-tit').textContent=tipo==='ingreso'?'Registrar altas — Plazas':'Registrar bajas — Plazas';
   const ib=document.getElementById('pl-ibox');
@@ -1993,7 +2075,7 @@ function openPlazas(base,tipo){
 
 async function guardarPlazas(){
   const tipo=document.getElementById('pl-tipo').value;
-  const base=document.getElementById('pl-base').value;
+  const base=document.getElementById('pl-base').value; // 'Jockey Plaza' o 'Bellavista'
   const raw=document.getElementById('pl-moviles').value;
   const obs=document.getElementById('pl-obs').value;
   const moviles=raw.split(/[\n,]+/).map(m=>m.trim()).filter(Boolean);
@@ -2002,8 +2084,11 @@ async function guardarPlazas(){
     const estFin=tipo==='ingreso'?'ACTIVO':'DESACTIVADO';
     const existe=S.conductores.find(c=>c.movil==movil);
     if(tipo==='ingreso'){
-      if(!existe){const nc={movil,flota:base,sub:'—',cat:'',cliente:'AFILIADO',estFin,obs,wari:0,kusi:0,sky:0,sc:0,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null};S.conductores.push(nc);await saveC(nc);}
-      else{existe.flota=base;existe.estFin=estFin;await saveC(existe);}
+      if(!existe){
+        const nc={movil,flota:'PLAZAS',sub:base,cat:'',cliente:'AFILIADO',estFin,obs,
+          wari:0,kusi:0,sky:0,latam:0,sc:0,bajaSem:false,esMem:false,esNuevo:false,semSinSvc:0,motivoSalida:null};
+        S.conductores.push(nc);await saveC(nc);
+      } else {existe.flota='PLAZAS';existe.sub=base;existe.estFin=estFin;await saveC(existe);}
     } else if(existe){existe.estFin='DESACTIVADO';existe.obs=obs||'Baja counter';await saveC(existe);}
     const pm={movil,base,tipo,observaciones:obs,semana_numero:S.semana};
     S.plazasMovs.push({...pm,semana_numero:S.semana});
@@ -2015,62 +2100,137 @@ async function guardarPlazas(){
 // =============================================
 // SERVICIOS
 // =============================================
-function simCarga(plat,tipo){
-  if(plat==='op'){render();alert('✓ Corrección operativa aplicada. Los números de gerencia se actualizaron.');return;}
-  const pg=document.getElementById('pg-'+plat);
+// =============================================
+// CARGA REAL DE EXCEL - SERVICIOS
+// =============================================
+// Acumulador de servicios por plataforma
+const svcData={wari:{},kusi:{},latam:{},sky:{}};
+
+async function cargarExcel(plat,tipo,input){
+  const file=input.files[0];if(!file)return;
   const lbl=document.getElementById(`l-${plat}-${tipo}`);
-  const zone=document.getElementById(`z-${plat}-${tipo}`);
-  if(!pg||!lbl||!zone)return;
-  let w=0;lbl.textContent='Procesando...';
-  const iv=setInterval(()=>{
-    w+=Math.random()*25;
-    if(w>=100){w=100;clearInterval(iv);
-      if(tipo==='pre'){
-        lbl.textContent='✓ Pre-data cargada';zone.className='uz pre';S.predata[plat]=true;
-        svcsPre=S.conductores.filter(c=>!PLAZAS.includes(c.flota)&&c.flota!=='FLOTA PROPIA').map(c=>({movil:c.movil,estFin:calcEstFinProp(c),svcs:svcs(c)}));
+  const pg=document.getElementById('pg-'+plat);
+  const res=document.getElementById('res-'+plat);
+  lbl.textContent='Leyendo...';
+  if(pg)pg.style.width='30%';
+  try{
+    // Leer archivo
+    const buf=await file.arrayBuffer();
+    let rows=[];
+    if(file.name.endsWith('.csv')){
+      const txt=new TextDecoder('utf-8').decode(buf);
+      rows=txt.split(/
+?
+/).filter(Boolean).map(l=>l.split(',').map(v=>v.trim().replace(/"/g,'')));
+    } else {
+      // Usar SheetJS si está disponible, sino parseo simple CSV
+      if(typeof XLSX!=='undefined'){
+        const wb=XLSX.read(buf);
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false}).filter(r=>r.length>=2);
       } else {
-        lbl.textContent='✓ Data final';zone.className='uz done';S.servicios[plat]=true;
-        if(S.servicios.wari&&S.servicios.kusi&&S.servicios.sky)mostrarDiff();
+        // Fallback: intentar leer como texto
+        const txt=new TextDecoder('utf-8').decode(buf);
+        rows=txt.split(/
+?
+/).filter(Boolean).map(l=>l.split(/[,;	]/).map(v=>v.trim().replace(/"/g,'')));
       }
-      updNavDots();updateBanner();
     }
-    pg.style.width=Math.round(w)+'%';
-  },180);
+    // Encontrar columnas Móvil y Servicios
+    let iMovil=0,iSvc=1;
+    if(rows.length>0){
+      const header=rows[0].map(h=>h.toLowerCase());
+      const mi=header.findIndex(h=>h.includes('m'+'o'+'vil')||h.includes('m'+'ó'+'vil')||h==='movil'||h==='móvil');
+      const si=header.findIndex(h=>h.includes('servicio')||h.includes('svc')||h.includes('cantidad')||h.includes('viaje'));
+      if(mi>=0)iMovil=mi;if(si>=0)iSvc=si;
+      rows=rows.slice(1); // quitar header
+    }
+    // Acumular servicios
+    const plDict={};
+    rows.forEach(r=>{
+      if(!r[iMovil])return;
+      const mov=String(r[iMovil]).trim();
+      const svc=parseInt(r[iSvc])||0;
+      if(mov&&mov!=='0')plDict[mov]=(plDict[mov]||0)+svc;
+    });
+    svcData[plat]=plDict;
+    if(pg)pg.style.width='100%';
+    const total=Object.keys(plDict).length;
+    const totalSvc=Object.values(plDict).reduce((a,b)=>a+b,0);
+    lbl.textContent=`✓ ${tipo==='pre'?'Pre-data':'Data final'} — ${total} móviles`;
+    if(res)res.textContent=`${total} móviles · ${totalSvc} servicios totales`;
+    if(tipo==='pre'){S.predata[plat]=true;}
+    else{S.servicios[plat]=true;aplicarServicios();}
+    updNavDots();updateBanner();
+    input.value=''; // reset input
+  }catch(e){
+    console.error('Error leyendo Excel:',e);
+    lbl.textContent='Error al leer archivo';
+    if(res)res.textContent='Verifica que el archivo sea .xlsx, .xls o .csv';
+  }
+}
+
+function aplicarServicios(){
+  // Acumular todos los servicios de las 4 plataformas
+  const totales={};
+  ['wari','kusi','latam','sky'].forEach(plat=>{
+    Object.entries(svcData[plat]).forEach(([mov,svc])=>{
+      totales[mov]=(totales[mov]||0)+svc;
+    });
+  });
+  // Aplicar a conductores
+  S.conductores.forEach(c=>{
+    if(PLAZAS.includes(c.flota)||FLIT.includes(c.flota))return;
+    c.wari=svcData.wari[c.movil]||0;
+    c.kusi=svcData.kusi[c.movil]||0;
+    c.sky=(svcData.sky[c.movil]||0)+(svcData.latam[c.movil]||0);
+    // latam se guarda como sky en el modelo actual
+    c.latam=svcData.latam[c.movil]||0;
+    c.skyOnly=svcData.sky[c.movil]||0;
+  });
+  S.svcsPorMovil=totales;
+  // Mostrar resumen de carga
+  const todasCargadas=S.servicios.wari&&S.servicios.kusi&&S.servicios.latam&&S.servicios.sky;
+  const el=document.getElementById('svcs-resumen');
+  if(el){
+    const movConSvc=Object.keys(totales).length;
+    const sinMatch=Object.keys(totales).filter(m=>!S.conductores.find(c=>c.movil==m)).length;
+    el.style.display='block';
+    el.innerHTML=`<div class="panel"><div class="sec"><i class="ti ti-check" style="color:var(--dg)"></i>Servicios cargados</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px">
+      <span><strong>Wari:</strong> ${Object.keys(svcData.wari).length} móviles</span>
+      <span><strong>Kusi:</strong> ${Object.keys(svcData.kusi).length} móviles</span>
+      <span><strong>Latam:</strong> ${Object.keys(svcData.latam).length} móviles</span>
+      <span><strong>Sky:</strong> ${Object.keys(svcData.sky).length} móviles</span>
+    </div>
+    ${sinMatch>0?`<div style="font-size:11px;color:var(--da);margin-top:6px">⚠ ${sinMatch} móvil${sinMatch>1?'es':''} en el Excel no está${sinMatch>1?'n':''} en el padrón</div>`:''}
+    ${todasCargadas?'<div style="font-size:11px;color:var(--dg);margin-top:6px">✓ Las 4 plataformas cargadas — listo para generar reporte</div>':''}
+    </div>`;
+  }
+  if(todasCargadas)mostrarDiff();
+  render();
 }
 
 function corrOpLunes(){
   if(confirm('¿Confirmar corrección de estado operativo con data limpia?\nEsto NO modifica el estado financiero ya enviado a Finanzas.')){
-    S.conductores.forEach(c=>{if(!PLAZAS.includes(c.flota)&&c.flota!=='FLOTA PROPIA')saveC(c);});
-    render();alert('✓ Corrección operativa aplicada. Los números de gerencia se actualizaron.');
+    S.conductores.forEach(c=>{if(!PLAZAS.includes(c.flota)&&!FLIT.includes(c.flota))saveC(c);});
+    render();alert('✓ Corrección operativa aplicada.');
   }
 }
 
 function mostrarDiff(){
-  if(!svcsPre.length)return;
   const cambios=[];
   S.conductores.forEach(c=>{
-    if(PLAZAS.includes(c.flota)||c.flota==='FLOTA PROPIA')return;
-    const pre=svcsPre.find(x=>x.movil==c.movil);
+    if(PLAZAS.includes(c.flota)||FLIT.includes(c.flota))return;
     const nuevo=calcEstFinProp(c);
-    if(pre&&pre.estFin!==nuevo)cambios.push({movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,antes:pre.estFin,despues:nuevo,svcsAntes:pre.svcs,svcsNuevo:svcs(c)});
+    const antes=c._estFinAntes||c.estFin;
+    if(antes!==nuevo)cambios.push({movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,antes,despues:nuevo,svcs:svcs(c)});
   });
   const el=document.getElementById('diff-res');
-  if(!cambios.length){el.innerHTML=`<div class="panel" style="text-align:center;color:var(--g600)"><i class="ti ti-check" style="font-size:18px;display:block;margin-bottom:5px;color:var(--dg)"></i>Sin cambios entre pre-data y data final</div>`;return;}
+  if(!cambios.length){el.innerHTML=`<div class="panel" style="text-align:center;color:var(--g600)"><i class="ti ti-check" style="font-size:18px;display:block;margin-bottom:5px;color:var(--dg)"></i>Sin cambios detectados</div>`;return;}
   el.innerHTML=`<div class="panel"><div class="sec" style="margin-bottom:8px"><i class="ti ti-arrows-exchange" style="color:var(--da)"></i>${cambios.length} cambio${cambios.length>1?'s':''} detectado${cambios.length>1?'s':''}</div>
-  <table style="width:100%"><thead><tr>
-    <th style="width:60px">Móvil</th><th style="width:100px">Flota</th>
-    <th style="width:70px">Sub</th><th style="width:65px">Cat.</th>
-    <th style="width:90px">Antes</th><th style="width:28px"></th><th style="width:100px">Ahora</th><th>Servicios</th>
-  </tr></thead><tbody>${cambios.map(d=>`<tr style="background:var(--dal)">
-    <td style="font-weight:600;color:var(--db)">${d.movil}</td>
-    <td style="font-size:10px">${d.flota}</td>
-    <td><span class="b sb" style="font-size:8px">${d.sub}</span></td>
-    <td>${d.cat?`<span class="b ca" style="font-size:8px">${d.cat}</span>`:''}</td>
-    <td><span class="b ${d.antes.toLowerCase()}">${d.antes}</span></td>
-    <td style="text-align:center;color:var(--da);font-size:14px">→</td>
-    <td><span class="b ${d.despues.toLowerCase()}">${d.despues}</span></td>
-    <td style="font-size:10px;color:var(--g600)">Antes: ${d.svcsAntes} · Ahora: ${d.svcsNuevo}</td>
-  </tr>`).join('')}</tbody></table></div>`;
+  <table style="width:100%"><thead><tr><th style="width:60px">Móvil</th><th style="width:100px">Flota</th><th style="width:80px">Sub</th><th style="width:65px">Cat.</th><th style="width:90px">Antes</th><th style="width:28px"></th><th style="width:100px">Ahora</th><th>Servicios</th></tr></thead>
+  <tbody>${cambios.map(d=>`<tr style="background:var(--dal)"><td style="font-weight:600;color:var(--db)">${d.movil}</td><td style="font-size:10px">${d.flota}</td><td><span class="b sb" style="font-size:8px">${d.sub}</span></td><td>${d.cat?`<span class="b ca" style="font-size:8px">${d.cat}</span>`:''}</td><td><span class="b ${d.antes.toLowerCase()}">${d.antes}</span></td><td style="text-align:center;color:var(--da);font-size:14px">→</td><td><span class="b ${d.despues.toLowerCase()}">${d.despues}</span></td><td style="font-size:10px;color:var(--g600)">${d.svcs} svc</td></tr>`).join('')}</tbody></table></div>`;
   render();
 }
 
