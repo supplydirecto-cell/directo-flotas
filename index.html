@@ -1445,7 +1445,7 @@ function renderPadron(resetPag){
     var memBadge=c.esMem?'<span class="b me" style="font-size:7px;margin-left:2px">MEM</span>':'';
     var alIcon=al?' <i class="ti ti-alert-triangle" style="color:var(--dr);font-size:9px"></i>':'';
     return '<tr class="'+(al?'al':'')+'">'+
-      '<td><a href="#" onclick="verHist(''+c.movil+'');return false" style="color:var(--db);font-weight:600;text-decoration:none">'+c.movil+'</a>'+alIcon+'</td>'+
+      '<td><a href="#" onclick="verHist(\''+c.movil+'\');return false" style="color:var(--db);font-weight:600;text-decoration:none">'+c.movil+'</a>'+alIcon+'</td>'+
       '<td style="font-size:10px">'+c.flota+memBadge+'</td>'+
       '<td><span class="b sb">'+(c.sub||'—')+'</span></td>'+
       '<td>'+catCell+'</td>'+
