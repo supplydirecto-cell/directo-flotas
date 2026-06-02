@@ -897,7 +897,7 @@ const MEM_TURNO=['Membresía Diurna','Membresía Nocturna'];
 const SUBFLOTAS={
   'AEROPUERTO':['Membresía Diurna','Membresía Nocturna','Aeropuerto Regular','Aeropuerto Van'],
   'URBANO':['Urbano Regular','Urbano Partner','Membresía Urbano'],
-  'AEROLINEAS':['Latam','Sky'],
+  'AEROLINEAS':['Latam','Sky','Jetsmart'],
   'PLAZAS':['Bellavista','Jockey Plaza'],
   'FLIT':['—']
 };
@@ -1395,7 +1395,9 @@ function updSubsFlt(){
   if(fl&&SUBFLOTAS[fl])(SUBFLOTAS[fl]||[]).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);});
 }
 
-function renderPadron(){
+let padronPag=0;
+function renderPadron(resetPag){
+  if(resetPag||resetPag===undefined)padronPag=0;
   const search=(document.getElementById('p-search').value||'').toLowerCase();
   const fl=document.getElementById('p-flota').value;
   const sub=document.getElementById('p-sub').value;
@@ -1405,11 +1407,24 @@ function renderPadron(){
   if(fl)data=data.filter(c=>c.flota===fl);
   if(sub)data=data.filter(c=>c.sub===sub);
   if(est)data=data.filter(c=>c.estFin===est);
-  document.getElementById('p-cnt').textContent=`${data.length} conductores`;
+  const total=data.length;
+  const PG=100;
+  const inicio=padronPag*PG;
+  const pagData=data.slice(inicio,inicio+PG);
+  document.getElementById('p-cnt').textContent=`${total} conductores${total>PG?' · mostrando '+(inicio+1)+'-'+Math.min(inicio+PG,total):''}`;
   const alM=new Set(alPend().map(a=>a.movil));
   const tbody=document.getElementById('padron-tb');
-  if(!data.length){tbody.innerHTML=`<tr><td colspan="13"><div class="empty"><i class="ti ti-users"></i>Sin resultados</div></td></tr>`;return;}
-  tbody.innerHTML=data.map(c=>{
+  if(!total){tbody.innerHTML=`<tr><td colspan="13"><div class="empty"><i class="ti ti-users"></i>Sin resultados</div></td></tr>`;return;}
+  // Botones de paginación
+  let pagHtml='';
+  if(total>PG){
+    pagHtml=`<div style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11px;color:var(--g600)">`;
+    if(padronPag>0)pagHtml+=`<button class="btn sm" onclick="padronPag--;renderPadron(false)">← Anterior</button>`;
+    pagHtml+=`<span>Página ${padronPag+1} de ${Math.ceil(total/PG)}</span>`;
+    if(inicio+PG<total)pagHtml+=`<button class="btn sm" onclick="padronPag++;renderPadron(false)">Siguiente →</button>`;
+    pagHtml+=`</div>`;
+  }
+  tbody.innerHTML=pagData.map(c=>{
     const al=alM.has(c.movil);
     const esFP=FLIT.includes(c.flota);
     const ss=S.saludSeg.find(x=>x.movil==c.movil);
@@ -1439,6 +1454,15 @@ function renderPadron(){
       <td style="text-align:center">${c.sc>0?`<span class="b co">${c.sc}</span>`:'—'}</td>
     </tr>`;
   }).join('');
+  // Agregar paginación al final
+  if(total>PG){
+    const pagDiv=document.createElement('div');
+    pagDiv.style.cssText='display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11px;color:var(--g600);padding:8px 0';
+    if(padronPag>0){const b=document.createElement('button');b.className='btn sm';b.textContent='← Anterior';b.onclick=()=>{padronPag--;renderPadron(false);};pagDiv.appendChild(b);}
+    const span=document.createElement('span');span.textContent=`Página ${padronPag+1} de ${Math.ceil(total/PG)} · ${total} conductores`;pagDiv.appendChild(span);
+    if(inicio+PG<total){const b=document.createElement('button');b.className='btn sm';b.textContent='Siguiente →';b.onclick=()=>{padronPag++;renderPadron(false);};pagDiv.appendChild(b);}
+    tbody.parentElement.parentElement.after(pagDiv);
+  }
 }
 
 // =============================================
@@ -1789,10 +1813,25 @@ function buscarConductor(){
   const q=document.getElementById('bus-input').value.trim();
   const el=document.getElementById('bus-res');const hint=document.getElementById('bus-hint');
   if(q.length<2){el.innerHTML='';hint.textContent='Ingresa al menos 2 caracteres';return;}
-  const matches=S.conductores.filter(c=>c.movil.includes(q));
-  hint.textContent=matches.length?`${matches.length} encontrado${matches.length>1?'s':''}`:' ';
-  if(!matches.length){el.innerHTML=`<div class="empty"><i class="ti ti-search"></i>Sin resultados para "${q}"</div>`;return;}
-  el.innerHTML=matches.map(c=>{
+  const matches=S.conductores.filter(c=>
+    c.movil.includes(q)||
+    (c.placa||'').toLowerCase().includes(q)||
+    (c.sub||'').toLowerCase().includes(q)
+  );
+  // Aplicar filtros adicionales
+  const busFlota=document.getElementById('bus-flota')?.value||'';
+  const busSub=document.getElementById('bus-sub')?.value||'';
+  const busEst=document.getElementById('bus-estado')?.value||'';
+  const busMem=document.getElementById('bus-mem')?.checked||false;
+  let filtered=matches;
+  if(busFlota)filtered=filtered.filter(c=>c.flota===busFlota);
+  if(busSub)filtered=filtered.filter(c=>c.sub===busSub);
+  if(busEst)filtered=filtered.filter(c=>c.estFin===busEst);
+  if(busMem)filtered=filtered.filter(c=>c.esMem);
+  hint.textContent=filtered.length?`${filtered.length} encontrado${filtered.length>1?'s':''}`:' ';
+  if(!filtered.length){el.innerHTML=`<div class="empty"><i class="ti ti-search"></i>Sin resultados para "${q}"</div>`;return;}
+  const matches_limit=filtered.slice(0,20); // mostrar máximo 20
+  el.innerHTML=matches_limit.map(c=>{
     const ss=S.saludSeg.find(x=>x.movil==c.movil);
     const estOp=getEstOp(c);const esFP=FLIT.includes(c.flota);
     const hist=[...S.historial.filter(h=>h.movil==c.movil)].sort((a,b)=>b.numero_semana-a.numero_semana);
@@ -2524,11 +2563,14 @@ const MOTIVOS_SEG=[...MOTIVOS_SEG_CONDUCTOR,...MOTIVOS_SEG_PLATAFORMA];
 function getTipoMotivo(m){return MOTIVOS_SEG_PLATAFORMA.includes(m)?'plataforma':'conductor';}
 
 function getConductoresSinMotivo(semana){
-  // Conductores con 0 servicios, sin permiso, sin salud, no plazas, no flit
+  // Solo conductores CONGELADO operativo, afiliados (no FLIT, no PLAZAS)
+  // sin permiso registrado, sin seguimiento de salud
   return S.conductores.filter(c=>{
     if(FLIT.includes(c.flota)||PLAZAS.includes(c.flota))return false;
+    if(c.cliente==='FLIT')return false;
     if(['DESACTIVADO','EXPULSADO'].includes(c.estFin))return false;
-    if(svcs(c)>0)return false;
+    // Solo los que están CONGELADO en operativo
+    if(getEstOp(c)!=='CONGELADO')return false;
     if(S.permisos.find(p=>p.movil==c.movil))return false;
     if(S.saludSeg.find(s=>s.movil==c.movil))return false;
     return true;
