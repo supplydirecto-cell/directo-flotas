@@ -245,22 +245,25 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
 <!-- DASHBOARD -->
 <div id="tab-dashboard" class="tab active">
   <div id="blk-d"></div>
-  <div class="cg c2" style="margin-bottom:14px">
+  <div class="cg c2" style="margin-bottom:10px">
     <div style="border:1px solid var(--g200);border-radius:var(--rl);padding:14px">
       <div style="font-size:10px;font-weight:600;text-transform:uppercase;color:var(--g600);margin-bottom:10px;letter-spacing:.5px">Estado financiero</div>
-      <div class="cg c3" style="margin-bottom:0">
+      <div class="cg c4" style="margin-bottom:0">
         <div class="mc g"><div class="ml">Activos</div><div class="mv" id="f-ac">—</div></div>
         <div class="mc a"><div class="ml">Congelados</div><div class="mv" id="f-co">—</div></div>
         <div class="mc r"><div class="ml">Desactivados</div><div class="mv" id="f-de">—</div></div>
+        <div class="mc" style="background:#EEF0F8;border-color:#B0B8D8"><div class="ml" style="color:#3D4580">FLIT</div><div class="mv" style="color:#3D4580" id="f-flit">—</div></div>
       </div>
     </div>
     <div style="border:1px solid var(--g200);border-radius:var(--rl);padding:14px">
       <div style="font-size:10px;font-weight:600;text-transform:uppercase;color:var(--g600);margin-bottom:10px;letter-spacing:.5px">Estado operativo</div>
-      <div class="cg c4" style="margin-bottom:0">
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px">
         <div class="mc g"><div class="ml">Activos</div><div class="mv" id="o-ac">—</div></div>
         <div class="mc a"><div class="ml">Congelados</div><div class="mv" id="o-co">—</div></div>
         <div class="mc r"><div class="ml">Desactivados</div><div class="mv" id="o-de">—</div></div>
         <div class="mc gr"><div class="ml">Expulsados</div><div class="mv" id="o-ex">—</div></div>
+        <div class="mc" style="background:#E8F0E8;border-color:#90C890"><div class="ml" style="color:#2D6A2D">FLIT Act.</div><div class="mv" style="color:#2D6A2D" id="o-flit-ac">—</div></div>
+        <div class="mc" style="background:#F8F0D8;border-color:#D8B840"><div class="ml" style="color:#7A5A00">FLIT Cong.</div><div class="mv" style="color:#7A5A00" id="o-flit-co">—</div></div>
       </div>
     </div>
   </div>
@@ -1282,15 +1285,22 @@ function getEstOp(c){
 }
 
 function updMetrics(){
-  // Financiero — excluir FLIT (tienen estFin='FLIT', no son parte del reporte financiero)
+  // Financiero — excluir FLIT (tienen estFin='FLIT')
   const parFin=S.conductores.filter(c=>!FLIT.includes(c.flota));
   document.getElementById('f-ac').textContent=parFin.filter(c=>c.estFin==='ACTIVO').length;
   document.getElementById('f-co').textContent=parFin.filter(c=>c.estFin==='CONGELADO').length;
   document.getElementById('f-de').textContent=parFin.filter(c=>['DESACTIVADO','EXPULSADO'].includes(c.estFin)).length;
-  // Operativo — todos los conductores (FLIT y PLAZAS también suman)
+  // FLIT financiero — total de unidades FLIT
+  const flitConds=S.conductores.filter(c=>FLIT.includes(c.flota));
+  document.getElementById('f-flit').textContent=flitConds.length;
+  // Operativo — todos excepto FLIT en los casilleros generales
+  const parOp=S.conductores.filter(c=>!FLIT.includes(c.flota));
   ['ACTIVO','CONGELADO','DESACTIVADO','EXPULSADO'].forEach((e,i)=>{
-    document.getElementById(['o-ac','o-co','o-de','o-ex'][i]).textContent=S.conductores.filter(c=>getEstOp(c)===e).length;
+    document.getElementById(['o-ac','o-co','o-de','o-ex'][i]).textContent=parOp.filter(c=>getEstOp(c)===e).length;
   });
+  // FLIT operativo — activos y congelados por separado
+  document.getElementById('o-flit-ac').textContent=flitConds.filter(c=>getEstOp(c)==='ACTIVO').length;
+  document.getElementById('o-flit-co').textContent=flitConds.filter(c=>getEstOp(c)==='CONGELADO').length;
 }
 
 function renderChartFlota(){
