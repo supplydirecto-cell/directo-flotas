@@ -235,6 +235,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
   <button onclick="goTab('servicios')" data-tab="servicios" id="nav-servicios"><i class="ti ti-upload"></i> Servicios <span class="dot"></span></button>
   <button onclick="goTab('reportes')" data-tab="reportes"><i class="ti ti-file-spreadsheet"></i> Reportes</button>
   <button onclick="goTab('buscador')" data-tab="buscador"><i class="ti ti-search"></i> Buscador</button>
+  <button onclick="goTab('seguimiento')" data-tab="seguimiento" id="nav-seguimiento"><i class="ti ti-phone-call"></i> Seguimiento <span class="dot"></span></button>
   <button onclick="goTab('indicadores')" data-tab="indicadores"><i class="ti ti-chart-bar"></i> Indicadores</button>
 </div>
 
@@ -527,17 +528,76 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
   <div style="margin-bottom:16px">
     <div style="font-size:13px;font-weight:600;color:var(--g800);margin-bottom:3px">Historial de conductor</div>
     <div style="font-size:11px;color:var(--g600);margin-bottom:11px">
-      Ve estados, subflota, categoría, tarifas, permisos, novedades y motivos semana a semana.
+      Busca por móvil, placa, flota, subflota, categoría o estado. Ve la vida completa del conductor.
     </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <div class="sbox" style="max-width:320px;border-color:var(--db)">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <div class="sbox" style="max-width:280px;border-color:var(--db)">
         <i class="ti ti-search" style="color:var(--db)"></i>
-        <input type="text" placeholder="Número de móvil..." id="bus-input" oninput="buscarConductor()" style="font-size:13px">
+        <input type="text" placeholder="Móvil o placa..." id="bus-input" oninput="buscarConductor()" style="font-size:13px">
       </div>
-      <span style="font-size:11px;color:var(--g600)" id="bus-hint">Ingresa al menos 2 caracteres</span>
+      <select class="fsel" id="bus-flota" onchange="buscarConductor()">
+        <option value="">Todas las flotas</option>
+        <option>AEROPUERTO</option><option>URBANO</option><option>AEROLINEAS</option><option>PLAZAS</option><option>FLIT</option>
+      </select>
+      <select class="fsel" id="bus-sub" onchange="buscarConductor()">
+        <option value="">Todas las subflotas</option>
+        <option>Membresía Diurna</option><option>Membresía Nocturna</option>
+        <option>Aeropuerto Regular</option><option>Aeropuerto Van</option>
+        <option>Urbano Regular</option><option>Urbano Partner</option><option>Membresía Urbano</option>
+        <option>Latam</option><option>Sky</option>
+      </select>
+      <select class="fsel" id="bus-estado" onchange="buscarConductor()">
+        <option value="">Todos los estados</option>
+        <option>ACTIVO</option><option>CONGELADO</option><option>DESACTIVADO</option><option>EXPULSADO</option>
+      </select>
+      <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--g600);cursor:pointer">
+        <input type="checkbox" id="bus-mem" onchange="buscarConductor()"> Solo membresía urbana
+      </label>
+      <span style="font-size:11px;color:var(--g600)" id="bus-hint"></span>
     </div>
   </div>
   <div id="bus-res"></div>
+</div>
+
+<!-- SEGUIMIENTO OPERATIVO -->
+<div id="tab-seguimiento" class="tab">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;flex-wrap:wrap;gap:8px">
+    <div>
+      <div style="font-size:13px;font-weight:600;color:var(--g800);margin-bottom:3px">Seguimiento operativo</div>
+      <div style="font-size:11px;color:var(--g600)">Conductores con 0 servicios sin permiso. Registra el motivo tras llamarlos.</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <select class="fsel" id="seg-sem" onchange="renderSeguimiento()"><option value="actual">Semana actual</option></select>
+      <select class="fsel" id="seg-flota" onchange="renderSeguimiento()">
+        <option value="">Todas las flotas</option>
+        <option>AEROPUERTO</option><option>URBANO</option><option>AEROLINEAS</option>
+      </select>
+      <button class="btn ok" onclick="expSeguimiento()"><i class="ti ti-download"></i> Descargar</button>
+    </div>
+  </div>
+  <!-- Dashboard de motivos -->
+  <div id="seg-dashboard" style="margin-bottom:16px"></div>
+  <!-- Alertas sin motivo -->
+  <div id="seg-alertas" style="margin-bottom:12px"></div>
+  <!-- Lista de conductores -->
+  <div class="sec"><i class="ti ti-phone-call"></i>Conductores a contactar</div>
+  <div class="tw"><table>
+    <thead><tr>
+      <th style="width:65px">Móvil</th>
+      <th style="width:105px">Flota</th>
+      <th style="width:95px">Subflota</th>
+      <th style="width:70px">Cat.</th>
+      <th style="width:55px">Sems❄</th>
+      <th style="width:130px">Motivo</th>
+      <th>Nota / resultado llamada</th>
+      <th style="width:90px">Registrado</th>
+      <th style="width:80px">Acción</th>
+    </tr></thead>
+    <tbody id="seg-tb"></tbody>
+  </table></div>
+  <!-- Historial de seguimiento -->
+  <div class="sec" style="margin-top:16px"><i class="ti ti-history"></i>Historial de motivos por semana</div>
+  <div id="seg-hist"></div>
 </div>
 
 <!-- INDICADORES -->
@@ -760,6 +820,61 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
   </div>
 </div>
 
+<!-- MODAL SEGUIMIENTO OPERATIVO -->
+<div class="mbg" id="m-seguimiento" style="display:none">
+  <div class="modal" style="width:500px">
+    <h3><i class="ti ti-phone-call" style="margin-right:6px;color:var(--da)"></i>Registrar seguimiento — Móvil <span id="seg-movil-tit"></span></h3>
+    <input type="hidden" id="seg-movil-id">
+    <div id="seg-conductor-info" style="background:var(--g50);border-radius:var(--r);padding:10px 13px;margin-bottom:12px;font-size:11px"></div>
+    <div class="fg">
+      <label>¿Pudiste contactar al conductor?</label>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn" id="seg-btn-si" onclick="segContacto(true)" style="flex:1">✅ Sí, lo contacté</button>
+        <button class="btn" id="seg-btn-no" onclick="segContacto(false)" style="flex:1">❌ No lo contacté</button>
+      </div>
+    </div>
+    <div class="fg">
+      <label>Motivo de no conexión</label>
+      <select id="seg-motivo" onchange="updSegTipo()">
+        <option value="">— Selecciona un motivo —</option>
+        <optgroup label="🧑 Motivos del conductor">
+          <option>No contesta</option>
+          <option>No localizado</option>
+          <option>Accidente personal</option>
+          <option>Salud / enfermedad crónica</option>
+          <option>Problemas personales</option>
+          <option>Sin unidad disponible</option>
+          <option>Renovación de vehículo</option>
+          <option>Baja productividad / sin ingresos</option>
+          <option>Vacaciones / viaje</option>
+          <option>Cambio de trabajo</option>
+          <option>Otro</option>
+        </optgroup>
+        <optgroup label="⚠️ Motivos de plataforma / empresa">
+          <option>Peajes no devueltos</option>
+          <option>Falta de soporte</option>
+          <option>Servicios retirados / cancelados</option>
+          <option>Inconformidad con tarifas</option>
+          <option>Problema técnico en app</option>
+          <option>Inconformidad con liquidación</option>
+          <option>Conflicto con pasajero</option>
+          <option>Restricción de acceso (LAP u otro)</option>
+        </optgroup>
+      </select>
+      <div id="seg-tipo-badge" style="margin-top:5px;min-height:18px"></div>
+    </div>
+    <div class="fg">
+      <label>Nota / resultado de la llamada</label>
+      <textarea id="seg-nota" style="min-height:70px" placeholder="Ej: Conductor indicó que está en viaje hasta el lunes. Confirmó que se reactivará semana 25..."></textarea>
+    </div>
+    <div id="seg-accion-sugerida" style="display:none" class="ibox in"></div>
+    <div class="ma">
+      <button class="btn" onclick="cm('m-seguimiento')">Cancelar</button>
+      <button class="btn pri" onclick="guardarSeguimiento()">Guardar seguimiento</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // =============================================
 // CONFIGURACIÓN SUPABASE
@@ -808,7 +923,8 @@ let S={
   alertasDec:{}, pendientesProx:[],
   servicios:{wari:false,kusi:false,latam:false,sky:false},
   predata:{wari:false,kusi:false,latam:false,sky:false},
-  svcsPorMovil:{} // acumulado de las 4 plataformas
+  svcsPorMovil:{}, // acumulado de las 4 plataformas
+  seguimientoOp:[] // seguimiento operativo semanal
 };
 let estadosRev={}, expTipo='fin', svcsPre=[], alertaActual=null, opcSel=null;
 // Usuario actual autenticado
@@ -882,14 +998,15 @@ async function doLogout(){
 async function loadFromDB(){
   syncMsg('⟳ Cargando...');
   try{
-    const[{data:conds},{data:perms},{data:sals},{data:novs},{data:pls},{data:hist},{data:cfg}]=await Promise.all([
+    const[{data:conds},{data:perms},{data:sals},{data:novs},{data:pls},{data:hist},{data:cfg},{data:segOp}]=await Promise.all([
       sb.from('conductores').select('*').eq('activo',true).order('movil'),
       sb.from('permisos').select('*').eq('activo',true),
       sb.from('seguimiento_salud').select('*,notas_salud(*)').eq('activo',true),
       sb.from('novedades').select('*').eq('activo',true),
       sb.from('plazas_movimientos').select('*').order('created_at',{ascending:false}).limit(100),
       sb.from('historial_semanal').select('*').order('numero_semana',{ascending:false}).limit(500),
-      sb.from('configuracion').select('*')
+      sb.from('configuracion').select('*'),
+      sb.from('seguimiento_operativo').select('*').order('created_at',{ascending:false}).limit(300)
     ]);
     if(conds)S.conductores=conds.map(mapC);
     if(perms)S.permisos=perms;
@@ -897,6 +1014,7 @@ async function loadFromDB(){
     if(novs)S.novedades=novs;
     if(pls)S.plazasMovs=pls;
     if(hist)S.historial=hist;
+    if(segOp)S.seguimientoOp=segOp;
     if(cfg){
       const sem=cfg.find(c=>c.clave==='semana_actual');
       const ini=cfg.find(c=>c.clave==='semana_inicio');
@@ -1154,7 +1272,7 @@ function updateBanner(){
 function render(){
   updateBanner();updMetrics();renderChartFlota();renderAlOp();renderPermDash();renderMotivosDash();renderFP();
   renderPadron();renderPermisos();renderNovedades();renderPlazas();renderAlertas();renderPendProx();
-  updNavDots();updBtns();renderHistRep();
+  updNavDots();updBtns();renderHistRep();initSegSemanas();
 }
 
 function updMetrics(){
@@ -1232,7 +1350,13 @@ function updNavDots(){
   document.getElementById('nav-alertas').classList.toggle('has-alert',pend>0);
   const s0=S.saludSeg.filter(s=>{const c=S.conductores.find(x=>x.movil==s.movil);return c&&svcs(c)===0;});
   document.getElementById('nav-permisos').classList.toggle('has-alert',s0.length>0);
-  document.getElementById('nav-servicios').classList.toggle('has-alert',!(S.servicios.wari&&S.servicios.kusi&&S.servicios.sky));
+  document.getElementById('nav-servicios').classList.toggle('has-alert',!(S.servicios.wari&&S.servicios.kusi&&S.servicios.latam&&S.servicios.sky));
+  // Seguimiento: conductores sin motivo
+  const sinMotivo=getConductoresSinMotivo().filter(c=>{
+    return!S.seguimientoOp.find(s=>s.movil==c.movil&&s.semana_numero===S.semana);
+  });
+  const navSeg=document.getElementById('nav-seguimiento');
+  if(navSeg)navSeg.classList.toggle('has-alert',sinMotivo.length>0);
 }
 
 function updBtns(){
@@ -2364,11 +2488,316 @@ function updRolUI(){const a=S.rol==='admin';document.getElementById('rol-lbl').t
 // UTILS
 // =============================================
 function cm(id){document.getElementById(id).style.display='none';}
+// =============================================
+// SEGUIMIENTO OPERATIVO
+// =============================================
+const MOTIVOS_SEG_CONDUCTOR=[
+  'No contesta','No localizado','Accidente personal',
+  'Salud / enfermedad crónica','Problemas personales',
+  'Sin unidad disponible','Renovación de vehículo',
+  'Baja productividad / sin ingresos','Vacaciones / viaje',
+  'Cambio de trabajo','Otro'
+];
+const MOTIVOS_SEG_PLATAFORMA=[
+  'Peajes no devueltos','Falta de soporte',
+  'Servicios retirados / cancelados','Inconformidad con tarifas',
+  'Problema técnico en app','Inconformidad con liquidación',
+  'Conflicto con pasajero','Restricción de acceso (LAP u otro)'
+];
+const MOTIVOS_SEG=[...MOTIVOS_SEG_CONDUCTOR,...MOTIVOS_SEG_PLATAFORMA];
+function getTipoMotivo(m){return MOTIVOS_SEG_PLATAFORMA.includes(m)?'plataforma':'conductor';}
+
+function getConductoresSinMotivo(semana){
+  // Conductores con 0 servicios, sin permiso, sin salud, no plazas, no flit
+  return S.conductores.filter(c=>{
+    if(FLIT.includes(c.flota)||PLAZAS.includes(c.flota))return false;
+    if(['DESACTIVADO','EXPULSADO'].includes(c.estFin))return false;
+    if(svcs(c)>0)return false;
+    if(S.permisos.find(p=>p.movil==c.movil))return false;
+    if(S.saludSeg.find(s=>s.movil==c.movil))return false;
+    return true;
+  });
+}
+
+function getSegSemana(semana){
+  return S.seguimientoOp.filter(s=>s.semana_numero===(semana||S.semana));
+}
+
+function renderSeguimiento(){
+  const semFiltro=document.getElementById('seg-sem')?.value;
+  const flotaFiltro=document.getElementById('seg-flota')?.value||'';
+  const esSemActual=!semFiltro||semFiltro==='actual';
+  const semNum=esSemActual?S.semana:parseInt(semFiltro);
+
+  // Conductores pendientes esta semana
+  let pendientes=getConductoresSinMotivo();
+  if(flotaFiltro)pendientes=pendientes.filter(c=>c.flota===flotaFiltro);
+
+  // Seguimientos registrados
+  const segSem=getSegSemana(semNum);
+  const segMoviles=new Set(segSem.map(s=>s.movil));
+
+  // Alertas sin motivo
+  const sinMotivo=pendientes.filter(c=>!segMoviles.has(c.movil));
+  const conMotivo=pendientes.filter(c=>segMoviles.has(c.movil));
+
+  // --- DASHBOARD ---
+  const dashEl=document.getElementById('seg-dashboard');
+  if(dashEl){
+    // Contar motivos históricos
+    const todasSems=[...new Set(S.seguimientoOp.map(s=>s.semana_numero))].sort((a,b)=>b-a).slice(0,8);
+    const motivoCount={};
+    S.seguimientoOp.filter(s=>flotaFiltro?s.flota===flotaFiltro:true).forEach(s=>{
+      if(s.motivo)motivoCount[s.motivo]=(motivoCount[s.motivo]||0)+1;
+    });
+    const maxM=Math.max(...Object.values(motivoCount),1);
+    const motivosSem={};
+    S.seguimientoOp.filter(s=>s.semana_numero===semNum).forEach(s=>{
+      if(s.motivo)motivosSem[s.motivo]=(motivosSem[s.motivo]||0)+1;
+    });
+
+    dashEl.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="mc a"><div class="ml">Sin motivo esta semana</div><div class="mv">${sinMotivo.length}</div><div class="ms">Pendientes de contactar</div></div>
+      <div class="mc g"><div class="ml">Contactados esta semana</div><div class="mv">${segSem.filter(s=>s.contactado).length}</div></div>
+      <div class="mc gr"><div class="ml">Total seguimientos sem.</div><div class="mv">${segSem.length}</div></div>
+    </div>
+    ${Object.keys(motivosSem).length?`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="panel" style="margin-bottom:0">
+        <h4>🧑 Motivos del conductor esta semana</h4>
+        ${Object.entries(motivosSem).filter(([m])=>getTipoMotivo(m)==='conductor').sort((a,b)=>b[1]-a[1]).length?
+          `<div class="bc">${Object.entries(motivosSem).filter(([m])=>getTipoMotivo(m)==='conductor').sort((a,b)=>b[1]-a[1]).map(([m,n])=>`
+            <div class="br"><span class="bl" style="font-size:9px">${m}</span><div class="bt"><div class="bf" style="width:${Math.round(n/Math.max(...Object.values(motivosSem))*100)}%;background:var(--db)"></div></div><span class="bv">${n}</span></div>
+          `).join('')}</div>`
+          :'<div style="font-size:11px;color:var(--g400)">Sin motivos de conductor</div>'}
+      </div>
+      <div class="panel" style="margin-bottom:0">
+        <h4>⚠️ Motivos de plataforma esta semana</h4>
+        ${Object.entries(motivosSem).filter(([m])=>getTipoMotivo(m)==='plataforma').sort((a,b)=>b[1]-a[1]).length?
+          `<div class="bc">${Object.entries(motivosSem).filter(([m])=>getTipoMotivo(m)==='plataforma').sort((a,b)=>b[1]-a[1]).map(([m,n])=>`
+            <div class="br"><span class="bl" style="font-size:9px">${m}</span><div class="bt"><div class="bf" style="width:${Math.round(n/Math.max(...Object.values(motivosSem))*100)}%;background:var(--dr)"></div></div><span class="bv">${n}</span></div>
+          `).join('')}</div>`
+          :'<div style="font-size:11px;color:var(--g400)">Sin motivos de plataforma</div>'}
+      </div>
+    </div>`:''}
+    ${Object.keys(motivoCount).length?`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="panel" style="margin-bottom:0">
+        <h4>🧑 Histórico — motivos conductor ${flotaFiltro?'· '+flotaFiltro:''}</h4>
+        <div class="bc">${Object.entries(motivoCount).filter(([m])=>getTipoMotivo(m)==='conductor').sort((a,b)=>b[1]-a[1]).map(([m,n])=>`
+          <div class="br"><span class="bl" style="font-size:9px">${m}</span><div class="bt"><div class="bf" style="width:${Math.round(n/maxM*100)}%;background:var(--db)88"></div></div><span class="bv">${n}</span></div>
+        `).join('')||'<div style="font-size:11px;color:var(--g400)">Sin datos</div>'}</div>
+      </div>
+      <div class="panel" style="margin-bottom:0">
+        <h4>⚠️ Histórico — motivos plataforma ${flotaFiltro?'· '+flotaFiltro:''}</h4>
+        <div class="bc">${Object.entries(motivoCount).filter(([m])=>getTipoMotivo(m)==='plataforma').sort((a,b)=>b[1]-a[1]).map(([m,n])=>`
+          <div class="br"><span class="bl" style="font-size:9px">${m}</span><div class="bt"><div class="bf" style="width:${Math.round(n/maxM*100)}%;background:var(--dr)88"></div></div><span class="bv">${n}</span></div>
+        `).join('')||'<div style="font-size:11px;color:var(--g400)">Sin datos</div>'}</div>
+      </div>
+    </div>`:''}`;
+  }
+
+  // --- ALERTAS ---
+  const alEl=document.getElementById('seg-alertas');
+  if(alEl&&esSemActual){
+    // Conductores con 2+ semanas sin motivo
+    const dosSemssinMotivo=sinMotivo.filter(c=>{
+      const semAnt=S.seguimientoOp.filter(s=>s.movil==c.movil&&s.semana_numero===S.semana-1);
+      return semAnt.length===0&&c.sc>=2;
+    });
+    if(dosSemssinMotivo.length){
+      alEl.innerHTML=`<div class="blk" style="margin-bottom:10px">
+        <i class="ti ti-alert-triangle" style="font-size:20px;color:var(--dr);flex-shrink:0"></i>
+        <div><div style="font-size:12px;font-weight:600;color:var(--dr)">${dosSemssinMotivo.length} conductor${dosSemssinMotivo.length>1?'es':''} con 2+ semanas sin motivo registrado</div>
+        <div style="font-size:11px;color:var(--dr);margin-top:2px">${dosSemssinMotivo.map(c=>`Móvil ${c.movil} (${c.flota}·${c.sub})`).join(' · ')}</div></div>
+      </div>`;
+    } else alEl.innerHTML='';
+  }
+
+  // --- TABLA ---
+  const tbody=document.getElementById('seg-tb');
+  if(!tbody)return;
+  const todos=[...sinMotivo.map(c=>({...c,_segReg:null})),...conMotivo.map(c=>({...c,_segReg:segSem.find(s=>s.movil==c.movil)}))];
+  if(!todos.length){tbody.innerHTML=`<tr><td colspan="9"><div class="empty"><i class="ti ti-check"></i>Sin conductores con 0 servicios esta semana</div></td></tr>`;return;}
+  tbody.innerHTML=todos.map(c=>{
+    const seg=c._segReg;
+    const tieneMotivo=!!seg;
+    const dosSemsAnt=S.seguimientoOp.filter(s=>s.movil==c.movil&&s.semana_numero===S.semana-1).length===0&&c.sc>=2;
+    return `<tr class="${!tieneMotivo&&dosSemsAnt?'al':''}">
+      <td><a href="#" onclick="verHist('${c.movil}');return false" style="color:var(--db);font-weight:600;text-decoration:none">${c.movil}</a></td>
+      <td style="font-size:10px">${c.flota}</td>
+      <td><span class="b sb" style="font-size:8px">${c.sub}</span></td>
+      <td>${c.cat?`<span class="b ca" style="font-size:8px">${c.cat}</span>`:''}</td>
+      <td style="text-align:center">${c.sc>0?`<span class="b co">${c.sc}</span>`:'—'}</td>
+      <td>${tieneMotivo?`<span class="b ${getTipoMotivo(seg.motivo)==='plataforma'?'de':'co'}" style="font-size:8px">${seg.motivo||'—'}</span><div style="font-size:8px;color:var(--g400);margin-top:1px">${getTipoMotivo(seg.motivo)==='plataforma'?'plataforma':'conductor'}</div>`:'<span style="font-size:10px;color:var(--g400)">Sin motivo</span>'}</td>
+      <td style="font-size:10px;color:var(--g600)">${tieneMotivo?(seg.nota||'—'):'—'}${tieneMotivo?`<div style="font-size:9px;color:var(--g400)">${seg.registrado_por||''} ${seg.registrado_en?'· '+new Date(seg.registrado_en).toLocaleDateString('es-PE',{day:'2-digit',month:'short'}):''}${seg.contactado?' · Contactado':' · No contactado'}</div>`:''}</td>
+      <td style="font-size:9px;color:var(--g400)">${tieneMotivo?(seg.registrado_por||'—'):'—'}</td>
+      <td><button class="btn sm ${tieneMotivo?'':'pri'}" onclick="openSeguimiento('${c.movil}')">
+        <i class="ti ti-${tieneMotivo?'edit':'phone-call'}"></i> ${tieneMotivo?'Editar':'Registrar'}
+      </button></td>
+    </tr>`;
+  }).join('');
+
+  // --- HISTORIAL ---
+  renderSegHistorial();
+
+  // Actualizar dot de nav
+  const navSeg=document.getElementById('nav-seguimiento');
+  if(navSeg)navSeg.classList.toggle('has-alert',sinMotivo.length>0);
+}
+
+function renderSegHistorial(){
+  const el=document.getElementById('seg-hist');if(!el)return;
+  const flotaFiltro=document.getElementById('seg-flota')?.value||'';
+  const sems=[...new Set(S.seguimientoOp.map(s=>s.semana_numero))].sort((a,b)=>b-a).slice(0,6);
+  if(!sems.length){el.innerHTML='<div class="empty" style="padding:14px;color:var(--g400)">Sin historial de seguimiento aún</div>';return;}
+
+  el.innerHTML=sems.map(sem=>{
+    const rows=S.seguimientoOp.filter(s=>s.semana_numero===sem&&(flotaFiltro?s.flota===flotaFiltro:true));
+    if(!rows.length)return'';
+    const motivosSem={};rows.forEach(r=>{if(r.motivo)motivosSem[r.motivo]=(motivosSem[r.motivo]||0)+1;});
+    return `<div class="fb" style="margin-bottom:8px">
+      <div class="fh">
+        <span style="font-size:12px;font-weight:600">Semana ${sem}</span>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">${Object.entries(motivosSem).sort((a,b)=>b[1]-a[1]).map(([m,n])=>`<span class="chip" style="font-size:9px">${m}: ${n}</span>`).join('')}</div>
+      </div>
+      <div class="tw" style="margin-bottom:0"><table>
+        <thead><tr><th style="width:65px">Móvil</th><th style="width:100px">Flota</th><th style="width:90px">Sub</th><th style="width:140px">Motivo</th><th>Nota</th><th style="width:100px">Registrado por</th></tr></thead>
+        <tbody>${rows.map(r=>`<tr>
+          <td style="font-weight:600;color:var(--db)">${r.movil}</td>
+          <td style="font-size:10px">${r.flota||'—'}</td>
+          <td><span class="b sb" style="font-size:8px">${r.subflota||'—'}</span></td>
+          <td><span class="b co" style="font-size:8px">${r.motivo||'—'}</span>${r.contactado?'<span class="b ac" style="font-size:7px;margin-left:2px">contactado</span>':'<span class="b de" style="font-size:7px;margin-left:2px">no contactado</span>'}</td>
+          <td style="font-size:10px;color:var(--g600)">${r.nota||'—'}</td>
+          <td style="font-size:10px;color:var(--g600)">${r.registrado_por||'—'}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>`;
+  }).filter(Boolean).join('');
+}
+
+let segContactado=null;
+function openSeguimiento(movil){
+  const c=S.conductores.find(x=>x.movil==movil);if(!c)return;
+  const seg=S.seguimientoOp.find(s=>s.movil==movil&&s.semana_numero===S.semana);
+  segContactado=seg?seg.contactado:null;
+  document.getElementById('seg-movil-tit').textContent=movil;
+  document.getElementById('seg-movil-id').value=movil;
+  // Info del conductor
+  const info=document.getElementById('seg-conductor-info');
+  if(info){
+    const tarifa=c.flota==='AEROPUERTO'&&c.cat&&c.sub?getTarifa(c.sub,c.cat):'';
+    info.innerHTML=`<div style="display:flex;gap:12px;flex-wrap:wrap">
+      <span><strong>Flota:</strong> ${c.flota}</span>
+      <span><strong>Sub:</strong> ${c.sub}</span>
+      ${c.cat?`<span><strong>Cat:</strong> ${c.cat}${tarifa?' · '+tarifa:''}</span>`:''}
+      <span><strong>Sem. congelado:</strong> ${c.sc}</span>
+      <span><strong>Estado fin:</strong> ${c.estFin}</span>
+      ${c.placa?`<span><strong>Placa:</strong> ${c.placa}</span>`:''}
+    </div>`;
+  }
+  document.getElementById('seg-motivo').value=seg?.motivo||'';
+  document.getElementById('seg-nota').value=seg?.nota||'';
+  // Estado botones contacto
+  updSegContactoBtns(seg?.contactado??null);
+  // Sugerencia de acción
+  const acEl=document.getElementById('seg-accion-sugerida');
+  if(acEl){
+    if(c.sc>=2){acEl.style.display='block';acEl.textContent='⚠ Este conductor lleva '+c.sc+' semanas congelado. Considera registrar una alerta o iniciar proceso de desactivación.';}
+    else acEl.style.display='none';
+  }
+  document.getElementById('m-seguimiento').style.display='flex';
+}
+
+function segContacto(val){
+  segContactado=val;
+  updSegContactoBtns(val);
+}
+
+function updSegTipo(){
+  const m=document.getElementById('seg-motivo')?.value;
+  const badge=document.getElementById('seg-tipo-badge');
+  if(!badge||!m)return;
+  const tipo=getTipoMotivo(m);
+  if(tipo==='plataforma'){
+    badge.innerHTML='<span class="b" style="background:var(--drl);border:1px solid #F09595;color:var(--dr);font-size:9px"><i class="ti ti-alert-triangle"></i> Motivo de plataforma — requiere acción interna</span>';
+  } else {
+    badge.innerHTML='<span class="b" style="background:var(--dbl);border:1px solid #B5D4F4;color:var(--dbd);font-size:9px"><i class="ti ti-user"></i> Motivo del conductor</span>';
+  }
+}
+
+function updSegContactoBtns(val){
+  const si=document.getElementById('seg-btn-si');
+  const no=document.getElementById('seg-btn-no');
+  if(si)si.style.background=val===true?'var(--dgl)':'';
+  if(si)si.style.borderColor=val===true?'#9FE1CB':'var(--g200)';
+  if(no)no.style.background=val===false?'var(--drl)':'';
+  if(no)no.style.borderColor=val===false?'#F09595':'var(--g200)';
+}
+
+async function guardarSeguimiento(){
+  const movil=document.getElementById('seg-movil-id').value;
+  const motivo=document.getElementById('seg-motivo').value;
+  const nota=document.getElementById('seg-nota').value.trim();
+  if(!motivo){alert('Selecciona un motivo');return;}
+  const c=S.conductores.find(x=>x.movil==movil);
+  const data={
+    movil,flota:c?.flota||'',subflota:c?.sub||'',
+    semana_numero:S.semana,motivo,nota,
+    contactado:segContactado===true,
+    registrado_por:currentUser.nombre||'Sistema',
+    registrado_por_id:currentUser.id||null,
+    registrado_en:new Date().toISOString()
+  };
+  try{
+    // Verificar si ya existe
+    const exist=S.seguimientoOp.find(s=>s.movil==movil&&s.semana_numero===S.semana);
+    if(exist){
+      await sb.from('seguimiento_operativo').update(data).eq('id',exist.id);
+      Object.assign(exist,data);
+    } else {
+      const{data:r}=await sb.from('seguimiento_operativo').insert(data).select().single();
+      if(r)S.seguimientoOp.push(r);
+    }
+    syncMsg('✓ Seguimiento guardado');
+    cm('m-seguimiento');
+    renderSeguimiento();
+    updNavDots();
+  }catch(e){console.error('guardarSeguimiento',e);alert('Error al guardar. Intenta de nuevo.');}
+}
+
+function expSeguimiento(){
+  const flotaFiltro=document.getElementById('seg-flota')?.value||'';
+  const datos=S.seguimientoOp.filter(s=>flotaFiltro?s.flota===flotaFiltro:true);
+  if(!datos.length){alert('Sin datos para exportar');return;}
+  const csv=['Semana,Móvil,Flota,Subflota,Motivo,Nota,Contactado,Registrado por,Fecha',
+    ...datos.map(s=>[s.semana_numero,s.movil,s.flota||'',s.subflota||'',s.motivo||'',
+      (s.nota||'').replace(/,/g,';'),s.contactado?'Sí':'No',s.registrado_por||'',
+      s.registrado_en?new Date(s.registrado_en).toLocaleDateString('es-PE'):''
+    ].map(v=>`"${v}"`).join(','))
+  ].join('\n');
+  const BOM='\uFEFF';
+  const blob=new Blob([BOM+csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`Seguimiento_Op_Sem${S.semana}${flotaFiltro?'_'+flotaFiltro:''}.csv`;
+  a.click();URL.revokeObjectURL(url);
+}
+
+function initSegSemanas(){
+  const el=document.getElementById('seg-sem');if(!el)return;
+  while(el.options.length>1)el.remove(1);
+  const sems=[...new Set(S.seguimientoOp.map(s=>s.semana_numero))].sort((a,b)=>b-a);
+  sems.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent='Sem '+s;el.appendChild(o);});
+}
+
 function goTab(tab){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
   const btn=document.querySelector(`[data-tab="${tab}"]`);if(btn)btn.classList.add('active');
+  if(tab==='seguimiento')renderSeguimiento();
 }
 
 setInterval(updateBanner,60000);
