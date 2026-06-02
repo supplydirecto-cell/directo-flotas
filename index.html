@@ -2108,44 +2108,39 @@ const svcData={wari:{},kusi:{},latam:{},sky:{}};
 
 async function cargarExcel(plat,tipo,input){
   const file=input.files[0];if(!file)return;
-  const lbl=document.getElementById(`l-${plat}-${tipo}`);
+  const lbl=document.getElementById('l-'+plat+'-'+tipo);
   const pg=document.getElementById('pg-'+plat);
   const res=document.getElementById('res-'+plat);
   lbl.textContent='Leyendo...';
   if(pg)pg.style.width='30%';
   try{
-    // Leer archivo
     const buf=await file.arrayBuffer();
     let rows=[];
-    if(file.name.endsWith('.csv')){
+    const nombre=file.name.toLowerCase();
+    if(nombre.endsWith('.csv')){
       const txt=new TextDecoder('utf-8').decode(buf);
-      rows=txt.split(/\r?\n/).filter(Boolean).map(l=>l.split(',').map(v=>v.trim().replace(/"/g,'')));
+      const sep=txt.indexOf('\r\n')>=0?'\r\n':'\n';
+      const lineas=txt.split(sep).filter(function(l){return l.trim().length>0;});
+      rows=lineas.map(function(l){return l.split(',').map(function(v){return v.trim().replace(/"/g,'');});});
+    } else if(typeof XLSX!=='undefined'){
+      const wb=XLSX.read(buf);
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false}).filter(function(r){return r.length>=2;});
     } else {
-      // Usar SheetJS si está disponible, sino parseo simple CSV
-      if(typeof XLSX!=='undefined'){
-        const wb=XLSX.read(buf);
-        const ws=wb.Sheets[wb.SheetNames[0]];
-        rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false}).filter(r=>r.length>=2);
-      } else {
-        // Fallback: intentar leer como texto
-        const txt=new TextDecoder('utf-8').decode(buf);
-        rows=txt.split(/
-?
-/).filter(Boolean).map(l=>l.split(/[,;	]/).map(v=>v.trim().replace(/"/g,'')));
-      }
+      alert('Para leer Excel sube el archivo como CSV (.csv).');
+      lbl.textContent='Error - usa CSV';
+      return;
     }
-    // Encontrar columnas Móvil y Servicios
     let iMovil=0,iSvc=1;
     if(rows.length>0){
-      const header=rows[0].map(h=>h.toLowerCase());
-      const mi=header.findIndex(h=>h.includes('m'+'o'+'vil')||h.includes('m'+'ó'+'vil')||h==='movil'||h==='móvil');
-      const si=header.findIndex(h=>h.includes('servicio')||h.includes('svc')||h.includes('cantidad')||h.includes('viaje'));
+      const header=rows[0].map(function(h){return String(h).toLowerCase();});
+      const mi=header.findIndex(function(h){return h.indexOf('movil')>=0||h.indexOf('vil')>=0;});
+      const si=header.findIndex(function(h){return h.indexOf('servicio')>=0||h.indexOf('svc')>=0||h.indexOf('cantidad')>=0;});
       if(mi>=0)iMovil=mi;if(si>=0)iSvc=si;
-      rows=rows.slice(1); // quitar header
+      rows=rows.slice(1);
     }
-    // Acumular servicios
     const plDict={};
-    rows.forEach(r=>{
+    rows.forEach(function(r){
       if(!r[iMovil])return;
       const mov=String(r[iMovil]).trim();
       const svc=parseInt(r[iSvc])||0;
@@ -2154,20 +2149,19 @@ async function cargarExcel(plat,tipo,input){
     svcData[plat]=plDict;
     if(pg)pg.style.width='100%';
     const total=Object.keys(plDict).length;
-    const totalSvc=Object.values(plDict).reduce((a,b)=>a+b,0);
-    lbl.textContent=`✓ ${tipo==='pre'?'Pre-data':'Data final'} — ${total} móviles`;
-    if(res)res.textContent=`${total} móviles · ${totalSvc} servicios totales`;
+    const totalSvc=Object.values(plDict).reduce(function(a,b){return a+b;},0);
+    lbl.textContent=(tipo==='pre'?'Pre-data':'Data final')+' -- '+total+' moviles';
+    if(res)res.textContent=total+' moviles, '+totalSvc+' servicios totales';
     if(tipo==='pre'){S.predata[plat]=true;}
     else{S.servicios[plat]=true;aplicarServicios();}
     updNavDots();updateBanner();
-    input.value=''; // reset input
+    input.value='';
   }catch(e){
     console.error('Error leyendo Excel:',e);
     lbl.textContent='Error al leer archivo';
-    if(res)res.textContent='Verifica que el archivo sea .xlsx, .xls o .csv';
+    if(res)res.textContent='Verifica que sea .xlsx o .csv';
   }
 }
-
 function aplicarServicios(){
   // Acumular todos los servicios de las 4 plataformas
   const totales={};
