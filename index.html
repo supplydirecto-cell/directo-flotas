@@ -1424,35 +1424,41 @@ function renderPadron(resetPag){
     if(inicio+PG<total)pagHtml+=`<button class="btn sm" onclick="padronPag++;renderPadron(false)">Siguiente →</button>`;
     pagHtml+=`</div>`;
   }
-  tbody.innerHTML=pagData.map(c=>{
-    const al=alM.has(c.movil);
-    const esFP=FLIT.includes(c.flota);
-    const ss=S.saludSeg.find(x=>x.movil==c.movil);
-    const estOp=getEstOp(c);
-    const tarifa=c.flota==='AEROPUERTO'&&c.cat&&c.sub?getTarifa(c.sub,c.cat):'';
-    // Estado financiero: expulsado se muestra como desactivado
-    const estFinMostrar=c.estFin==='EXPULSADO'?'DESACTIVADO':c.estFin;
-    const estFinClass=esFP?'fp':estFinMostrar.toLowerCase();
-    return `<tr class="${al?'al':''}">
-      <td><a href="#" onclick="verHist('${c.movil}');return false" style="color:var(--db);font-weight:600;text-decoration:none">${c.movil}</a>${al?' <i class="ti ti-alert-triangle" style="color:var(--dr);font-size:9px"></i>':''}</td>
-      <td style="font-size:10px">${c.flota}${c.esMem?'<span class="b me" style="font-size:7px;margin-left:2px">MEM</span>':''}</td>
-      <td><span class="b sb">${c.sub||'—'}</span></td>
-      <td>${c.cat?`<span class="b ca" style="font-size:8px">${c.cat}</span>${tarifa?`<div style="font-size:8px;color:var(--g400)">${tarifa}</div>`:''}`:''}</td>
-      <td style="font-size:10px;color:var(--g600)">${c.placa||'—'}</td>
-      <td style="font-size:10px;color:var(--g600)">${c.tipoVehiculo||'—'}</td>
-      <td>
-        <span class="b ${estFinClass}">${esFP?'FP':estFinMostrar}</span>
-        ${ss?'<span class="b sa" style="font-size:7px;margin-left:1px">S</span>':''}
-        ${c.bajaSem?'<span class="b co" style="font-size:7px;margin-left:1px">baja</span>':''}
-        ${c.esNuevo?'<span class="b nv" style="font-size:7px;margin-left:1px">nuevo</span>':''}
-      </td>
-      <td><span class="b ${estOp.toLowerCase()}">${estOp}</span></td>
-      <td style="font-size:10px;color:var(--g600)">${c.obs||'—'}</td>
-      <td style="text-align:center">${c.wari||0}</td>
-      <td style="text-align:center">${c.kusi||0}</td>
-      <td style="text-align:center">${c.sky||0}</td>
-      <td style="text-align:center">${c.sc>0?`<span class="b co">${c.sc}</span>`:'—'}</td>
-    </tr>`;
+  tbody.innerHTML=pagData.map(function(c){
+    var al=alM.has(c.movil);
+    var esFP=FLIT.includes(c.flota);
+    var ss=S.saludSeg.find(function(x){return x.movil==c.movil;});
+    var estOp=getEstOp(c);
+    var tarifa=c.flota==='AEROPUERTO'&&c.cat&&c.sub?getTarifa(c.sub,c.cat):'';
+    var estFinMostrar=c.estFin==='EXPULSADO'?'DESACTIVADO':c.estFin;
+    var estFinClass=esFP?'fp':estFinMostrar.toLowerCase();
+    var catCell='';
+    if(c.cat){
+      catCell='<span class="b ca" style="font-size:8px">'+c.cat+'</span>';
+      if(tarifa)catCell+='<div style="font-size:8px;color:var(--g400)">'+tarifa+'</div>';
+    }
+    var finCell='<span class="b '+estFinClass+'">'+(esFP?'FP':estFinMostrar)+'</span>';
+    if(ss)finCell+='<span class="b sa" style="font-size:7px;margin-left:1px">S</span>';
+    if(c.bajaSem)finCell+='<span class="b co" style="font-size:7px;margin-left:1px">baja</span>';
+    if(c.esNuevo)finCell+='<span class="b nv" style="font-size:7px;margin-left:1px">nuevo</span>';
+    var scCell=c.sc>0?'<span class="b co">'+c.sc+'</span>':'—';
+    var memBadge=c.esMem?'<span class="b me" style="font-size:7px;margin-left:2px">MEM</span>':'';
+    var alIcon=al?' <i class="ti ti-alert-triangle" style="color:var(--dr);font-size:9px"></i>':'';
+    return '<tr class="'+(al?'al':'')+'">'+
+      '<td><a href="#" onclick="verHist(''+c.movil+'');return false" style="color:var(--db);font-weight:600;text-decoration:none">'+c.movil+'</a>'+alIcon+'</td>'+
+      '<td style="font-size:10px">'+c.flota+memBadge+'</td>'+
+      '<td><span class="b sb">'+(c.sub||'—')+'</span></td>'+
+      '<td>'+catCell+'</td>'+
+      '<td style="font-size:10px;color:var(--g600)">'+(c.placa||'—')+'</td>'+
+      '<td style="font-size:10px;color:var(--g600)">'+(c.tipoVehiculo||'—')+'</td>'+
+      '<td>'+finCell+'</td>'+
+      '<td><span class="b '+estOp.toLowerCase()+'">'+estOp+'</span></td>'+
+      '<td style="font-size:10px;color:var(--g600)">'+(c.obs||'—')+'</td>'+
+      '<td style="text-align:center">'+(c.wari||0)+'</td>'+
+      '<td style="text-align:center">'+(c.kusi||0)+'</td>'+
+      '<td style="text-align:center">'+(c.sky||0)+'</td>'+
+      '<td style="text-align:center">'+scCell+'</td>'+
+      '</tr>';
   }).join('');
   // Agregar paginación al final
   if(total>PG){
@@ -1831,63 +1837,75 @@ function buscarConductor(){
   hint.textContent=filtered.length?`${filtered.length} encontrado${filtered.length>1?'s':''}`:' ';
   if(!filtered.length){el.innerHTML=`<div class="empty"><i class="ti ti-search"></i>Sin resultados para "${q}"</div>`;return;}
   const matches_limit=filtered.slice(0,20); // mostrar máximo 20
-  el.innerHTML=matches_limit.map(c=>{
-    const ss=S.saludSeg.find(x=>x.movil==c.movil);
-    const estOp=getEstOp(c);const esFP=FLIT.includes(c.flota);
-    const hist=[...S.historial.filter(h=>h.movil==c.movil)].sort((a,b)=>b.numero_semana-a.numero_semana);
-    const permSem=S.permisos.find(p=>p.movil==c.movil);
-    const permAno=hist.filter(h=>h.permiso_tipo).length+(permSem?1:0);
-    const tarifa=c.flota==='AEROPUERTO'&&c.cat&&c.sub?getTarifa(c.sub,c.cat):'';
-    return `<div style="border:1px solid var(--g200);border-radius:var(--rl);overflow:hidden;margin-bottom:12px">
-      <div style="padding:11px 14px;background:var(--db);display:flex;align-items:center;justify-content:space-between">
-        <div>
-          <div style="font-size:18px;font-weight:600;color:#fff">Móvil ${c.movil}</div>
-          <div style="font-size:10px;color:rgba(255,255,255,.7);margin-top:2px">
-            ${c.flota} · <span style="background:rgba(255,255,255,.15);padding:1px 7px;border-radius:10px">${c.sub}</span>
-            ${c.cat?` · <span style="background:rgba(255,255,255,.15);padding:1px 7px;border-radius:10px">${c.cat}</span>`:''}
-            ${tarifa?` · ${tarifa}`:''}
-            · ${c.cliente}${c.esMem?' · Membresía':''}
-          </div>
-        </div>
-        <div style="display:flex;gap:6px">
-          <div style="text-align:center;padding:6px 10px;background:rgba(255,255,255,.12);border-radius:var(--r)">
-            <div style="font-size:8px;color:rgba(255,255,255,.6);margin-bottom:2px">FINANCIERO</div>
-            <span class="b ${esFP?'fp':c.estFin.toLowerCase()}">${c.estFin}</span>
-          </div>
-          <div style="text-align:center;padding:6px 10px;background:rgba(255,255,255,.12);border-radius:var(--r)">
-            <div style="font-size:8px;color:rgba(255,255,255,.6);margin-bottom:2px">OPERATIVO</div>
-            <span class="b ${estOp.toLowerCase()}">${estOp}</span>
-          </div>
-          <div style="text-align:center;padding:6px 10px;background:rgba(255,255,255,.12);border-radius:var(--r)">
-            <div style="font-size:8px;color:rgba(255,255,255,.6);margin-bottom:2px">PERMISOS/AÑO</div>
-            <div style="font-size:14px;font-weight:600;color:#fff">${permAno}</div>
-          </div>
-        </div>
-      </div>
-      <div style="padding:7px 13px;background:var(--g50);border-bottom:1px solid var(--g100);display:flex;gap:12px;font-size:11px;flex-wrap:wrap">
-        <span><strong>Sem. congelado:</strong> ${c.sc}</span>
-        <span><strong>Servicios:</strong> W:${c.wari||0} K:${c.kusi||0} S:${c.sky||0}</span>
-        ${ss?`<span style="color:var(--da)"><strong>Salud desde:</strong> ${ss.inicio||ss.fecha_inicio}</span>`:''}
-        ${c.bajaSem?'<span style="color:var(--dr)"><strong>Baja mitad semana</strong></span>':''}
-        ${c.motivoSalida?`<span style="color:var(--dr)"><strong>Motivo salida:</strong> ${c.motivoSalida}</span>`:''}
-      </div>
-      <div>
-        <div style="display:grid;grid-template-columns:55px 55px 60px 82px 82px 60px 70px 1fr;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--g600);padding:5px 13px;background:var(--g50);border-bottom:1px solid var(--g100)">
-          <span>Semana</span><span>Sub</span><span>Categ.</span><span>Financiero</span><span>Operativo</span><span>W/K/S</span><span>Permiso</span><span>Obs.</span>
-        </div>
-        ${hist.slice(0,12).map(h=>`<div style="display:flex;align-items:center;gap:7px;padding:6px 13px;border-bottom:1px solid var(--g100);font-size:11px">
-          <span style="width:55px;font-size:10px;font-weight:600;color:var(--db);flex-shrink:0">Sem ${h.numero_semana}</span>
-          <span style="width:55px;flex-shrink:0"><span class="b sb" style="font-size:8px">${h.subflota||'—'}</span></span>
-          <span style="width:60px;flex-shrink:0">${h.categoria_vehiculo?`<span class="b ca" style="font-size:8px">${h.categoria_vehiculo}</span>`:''}</span>
-          <span style="width:82px;flex-shrink:0"><span class="b ${(h.estado_fin||'congelado').toLowerCase()}" style="font-size:8px">${h.estado_fin||'—'}</span></span>
-          <span style="width:82px;flex-shrink:0"><span class="b ${(h.estado_op||'congelado').toLowerCase()}" style="font-size:8px">${h.estado_op||'—'}</span></span>
-          <span style="width:60px;font-size:10px;color:var(--g600);flex-shrink:0">W:${h.wari||0} K:${h.kusi||0}</span>
-          <span style="width:70px;flex-shrink:0">${h.permiso_tipo?`<span class="b co" style="font-size:8px">${h.permiso_tipo.split('/')[0].trim()}</span>`:'—'}</span>
-          <span style="font-size:10px;color:var(--g600);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h.observaciones||'—'}</span>
-        </div>`).join('')}
-        ${!hist.length?`<div style="padding:8px 13px;font-size:11px;color:var(--g400)">Sin historial previo</div>`:''}
-      </div>
-    </div>`;
+    el.innerHTML=matches_limit.map(function(c){
+    var ss=S.saludSeg.find(function(x){return x.movil==c.movil;});
+    var estOp=getEstOp(c);
+    var esFP=FLIT.includes(c.flota);
+    var hist=[...S.historial.filter(function(h){return h.movil==c.movil;})].sort(function(a,b){return b.numero_semana-a.numero_semana;});
+    var permSem=S.permisos.find(function(p){return p.movil==c.movil;});
+    var permAno=hist.filter(function(h){return h.permiso_tipo;}).length+(permSem?1:0);
+    var tarifa=c.flota==='AEROPUERTO'&&c.cat&&c.sub?getTarifa(c.sub,c.cat):'';
+    var catSpan=c.cat?' · <span style="background:rgba(255,255,255,.15);padding:1px 7px;border-radius:10px">'+c.cat+'</span>':'';
+    var tarifaSpan=tarifa?' · '+tarifa:'';
+    var memStr=c.esMem?' · Membresía':'';
+    var ssStr=ss?'<span style="color:var(--da)"><strong>Salud desde:</strong> '+(ss.inicio||ss.fecha_inicio||'—')+'</span>':'';
+    var bajaStr=c.bajaSem?'<span style="color:var(--dr)"><strong>Baja mitad semana</strong></span>':'';
+    var motivoStr=c.motivoSalida?'<span style="color:var(--dr)"><strong>Motivo salida:</strong> '+c.motivoSalida+'</span>':'';
+    var histRows=hist.slice(0,12).map(function(h){
+      var efClass=(h.estado_fin||'congelado').toLowerCase();
+      var eoClass=(h.estado_op||'congelado').toLowerCase();
+      var catH=h.categoria_vehiculo?'<span class="b ca" style="font-size:8px">'+h.categoria_vehiculo+'</span>':'';
+      var permH=h.permiso_tipo?'<span class="b co" style="font-size:8px">'+(h.permiso_tipo.split('/')[0]||'').trim()+'</span>':'—';
+      return '<div style="display:flex;align-items:center;gap:7px;padding:6px 13px;border-bottom:1px solid var(--g100);font-size:11px">'+
+        '<span style="width:55px;font-size:10px;font-weight:600;color:var(--db);flex-shrink:0">Sem '+(h.numero_semana||'—')+'</span>'+
+        '<span style="width:55px;flex-shrink:0"><span class="b sb" style="font-size:8px">'+(h.subflota||'—')+'</span></span>'+
+        '<span style="width:60px;flex-shrink:0">'+catH+'</span>'+
+        '<span style="width:82px;flex-shrink:0"><span class="b '+efClass+'" style="font-size:8px">'+(h.estado_fin||'—')+'</span></span>'+
+        '<span style="width:82px;flex-shrink:0"><span class="b '+eoClass+'" style="font-size:8px">'+(h.estado_op||'—')+'</span></span>'+
+        '<span style="width:60px;font-size:10px;color:var(--g600);flex-shrink:0">W:'+(h.wari||0)+' K:'+(h.kusi||0)+'</span>'+
+        '<span style="width:70px;flex-shrink:0">'+permH+'</span>'+
+        '<span style="font-size:10px;color:var(--g600);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(h.observaciones||'—')+'</span>'+
+        '</div>';
+    }).join('');
+    var noHistStr=!hist.length?'<div style="padding:8px 13px;font-size:11px;color:var(--g400)">Sin historial previo</div>':'';
+    var finClass=esFP?'fp':c.estFin.toLowerCase();
+    return '<div style="border:1px solid var(--g200);border-radius:var(--rl);overflow:hidden;margin-bottom:12px">'+
+      '<div style="padding:11px 14px;background:var(--db);display:flex;align-items:center;justify-content:space-between">'+
+        '<div>'+
+          '<div style="font-size:18px;font-weight:600;color:#fff">Móvil '+c.movil+'</div>'+
+          '<div style="font-size:10px;color:rgba(255,255,255,.7);margin-top:2px">'+
+            c.flota+' · <span style="background:rgba(255,255,255,.15);padding:1px 7px;border-radius:10px">'+(c.sub||'—')+'</span>'+
+            catSpan+tarifaSpan+' · '+c.cliente+memStr+
+          '</div>'+
+        '</div>'+
+        '<div style="display:flex;gap:6px">'+
+          '<div style="text-align:center;padding:6px 10px;background:rgba(255,255,255,.12);border-radius:var(--r)">'+
+            '<div style="font-size:8px;color:rgba(255,255,255,.6);margin-bottom:2px">FINANCIERO</div>'+
+            '<span class="b '+finClass+'">'+c.estFin+'</span>'+
+          '</div>'+
+          '<div style="text-align:center;padding:6px 10px;background:rgba(255,255,255,.12);border-radius:var(--r)">'+
+            '<div style="font-size:8px;color:rgba(255,255,255,.6);margin-bottom:2px">OPERATIVO</div>'+
+            '<span class="b '+estOp.toLowerCase()+'">'+estOp+'</span>'+
+          '</div>'+
+          '<div style="text-align:center;padding:6px 10px;background:rgba(255,255,255,.12);border-radius:var(--r)">'+
+            '<div style="font-size:8px;color:rgba(255,255,255,.6);margin-bottom:2px">PERMISOS/AÑO</div>'+
+            '<div style="font-size:14px;font-weight:600;color:#fff">'+permAno+'</div>'+
+          '</div>'+
+        '</div>'+
+      '</div>'+
+      '<div style="padding:7px 13px;background:var(--g50);border-bottom:1px solid var(--g100);display:flex;gap:12px;font-size:11px;flex-wrap:wrap">'+
+        '<span><strong>Sem. congelado:</strong> '+c.sc+'</span>'+
+        '<span><strong>Servicios:</strong> W:'+(c.wari||0)+' K:'+(c.kusi||0)+' S:'+(c.sky||0)+'</span>'+
+        '<span><strong>Placa:</strong> '+(c.placa||'—')+'</span>'+
+        ssStr+bajaStr+motivoStr+
+      '</div>'+
+      '<div>'+
+        '<div style="display:grid;grid-template-columns:55px 55px 60px 82px 82px 60px 70px 1fr;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--g600);padding:5px 13px;background:var(--g50);border-bottom:1px solid var(--g100)">'+
+          '<span>Semana</span><span>Sub</span><span>Categ.</span><span>Financiero</span><span>Operativo</span><span>W/K/S</span><span>Permiso</span><span>Obs.</span>'+
+        '</div>'+
+        histRows+noHistStr+
+      '</div>'+
+    '</div>';
   }).join('');
 }
 
