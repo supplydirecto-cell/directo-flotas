@@ -151,6 +151,39 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
   </div>
 </div>
 
+<!-- PANTALLA DE LOGIN -->
+<div id="login-screen" style="display:flex;position:fixed;inset:0;background:linear-gradient(135deg,#0057FF 0%,#0041CC 100%);align-items:center;justify-content:center;z-index:200">
+  <div style="background:#fff;border-radius:16px;padding:36px;width:380px;max-width:95vw;box-shadow:0 24px 48px rgba(0,0,0,.2)">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="width:52px;height:52px;background:var(--db);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px">
+        <i class="ti ti-car" style="color:#fff;font-size:26px"></i>
+      </div>
+      <div style="font-size:20px;font-weight:700;color:var(--g800);margin-bottom:4px">Directo · Flotas</div>
+      <div style="font-size:12px;color:var(--g400)">Ingresa con tu cuenta del equipo</div>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:11px;font-weight:600;color:var(--g600);margin-bottom:4px">Email</label>
+      <input type="email" id="login-email" placeholder="tu@directoapp.pe"
+        style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--g200);font-size:13px;font-family:inherit;outline:none"
+        onfocus="this.style.borderColor='var(--db)'" onblur="this.style.borderColor='var(--g200)'"
+        onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
+    </div>
+    <div style="margin-bottom:8px">
+      <label style="display:block;font-size:11px;font-weight:600;color:var(--g600);margin-bottom:4px">Contraseña</label>
+      <input type="password" id="login-pass" placeholder="••••••••"
+        style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--g200);font-size:13px;font-family:inherit;outline:none"
+        onfocus="this.style.borderColor='var(--db)'" onblur="this.style.borderColor='var(--g200)'"
+        onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div id="login-err" style="font-size:11px;color:var(--dr);margin-bottom:12px;min-height:16px"></div>
+    <button id="login-btn" onclick="doLogin()"
+      style="width:100%;padding:11px;background:var(--db);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">
+      Ingresar
+    </button>
+  </div>
+</div>
+
+<div id="app-main" style="display:none">
 <div class="app">
 <div style="border-radius:var(--rl);overflow:hidden;box-shadow:0 8px 24px rgba(0,87,255,.12)">
 
@@ -162,14 +195,18 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
   </div>
   <div class="tr">
     <div style="font-size:10px;color:rgba(255,255,255,.6)" id="sync-st"></div>
-    <div class="rol-pill" id="rol-pill" onclick="toggleRol()">
+    <div style="font-size:11px;color:rgba(255,255,255,.8);margin-right:4px" id="user-name-top"></div>
+    <div class="rol-pill" id="rol-pill">
       <i class="ti ti-user" style="font-size:13px"></i><span id="rol-lbl">Ejecutivo</span>
     </div>
     <button class="btn-top ghost" id="btn-al-top" onclick="goTab('alertas')" style="display:none">
       <i class="ti ti-alert-triangle"></i><span id="cnt-al">0</span> alertas
     </button>
-    <button class="btn-top white" id="btn-cierre" onclick="intentarCierre()">
+    <button class="btn-top white" id="btn-cierre" onclick="intentarCierre()" title="Solo disponible para Admin">
       <i class="ti ti-file-export"></i> Generar reporte
+    </button>
+    <button class="btn-top" onclick="doLogout()" style="background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.2)">
+      <i class="ti ti-logout" style="font-size:13px"></i>
     </button>
   </div>
 </div>
@@ -285,9 +322,10 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
   <div id="otros-tit" style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--g600);margin-bottom:8px"></div>
   <div class="tw"><table>
     <thead><tr>
-      <th style="width:60px">Móvil</th><th style="width:98px">Flota</th><th style="width:80px">Subflota</th>
-      <th style="width:112px">Tipo</th><th>Motivo</th>
-      <th style="width:78px">Inicio</th><th style="width:78px">Fin</th><th style="width:38px">Días</th><th style="width:40px"></th>
+      <th style="width:60px">Móvil</th><th style="width:95px">Flota</th><th style="width:75px">Subflota</th>
+      <th style="width:108px">Tipo</th><th>Motivo</th>
+      <th style="width:75px">Inicio</th><th style="width:75px">Fin</th><th style="width:36px">Días</th>
+      <th style="width:110px">Registrado por</th><th style="width:40px"></th>
     </tr></thead>
     <tbody id="perm-tb"></tbody>
   </table></div>
@@ -524,6 +562,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
 </div><!-- /content -->
 </div><!-- /app wrapper -->
 </div><!-- /app -->
+</div><!-- /app-main -->
 
 <!-- MODALES -->
 <div class="mbg" id="m-permiso" style="display:none">
@@ -772,6 +811,8 @@ let S={
   svcsPorMovil:{} // acumulado de las 4 plataformas
 };
 let estadosRev={}, expTipo='fin', svcsPre=[], alertaActual=null, opcSel=null;
+// Usuario actual autenticado
+let currentUser={id:null,nombre:'',email:'',rol:'ejecutivo'};
 
 // =============================================
 // SUPABASE - CARGA Y GUARDADO
@@ -779,6 +820,63 @@ let estadosRev={}, expTipo='fin', svcsPre=[], alertaActual=null, opcSel=null;
 function syncMsg(m){
   document.getElementById('sync-st').textContent=m;
   if(m.startsWith('✓'))setTimeout(()=>document.getElementById('sync-st').textContent='',3000);
+}
+
+async function checkAuth(){
+  const{data:{session}}=await sb.auth.getSession();
+  if(!session){
+    // No hay sesión - mostrar pantalla de login
+    document.getElementById('login-screen').style.display='flex';
+    document.getElementById('app-main').style.display='none';
+    return false;
+  }
+  // Obtener datos del usuario del sistema
+  try{
+    const{data:usr}=await sb.from('usuarios_sistema').select('*').eq('auth_id',session.user.id).single();
+    if(usr){
+      currentUser={id:usr.id,nombre:usr.nombre,email:usr.email,rol:usr.rol};
+      S.rol=usr.rol;
+      document.getElementById('user-name-top').textContent=usr.nombre;
+      document.getElementById('rol-lbl').textContent=usr.rol==='admin'?'Admin':'Ejecutivo';
+      document.getElementById('rol-pill').className=usr.rol==='admin'?'rol-pill admin':'rol-pill';
+    }
+  }catch(e){console.error('Error obteniendo usuario:',e);}
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app-main').style.display='block';
+  return true;
+}
+
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pass=document.getElementById('login-pass').value;
+  const err=document.getElementById('login-err');
+  const btn=document.getElementById('login-btn');
+  if(!email||!pass){err.textContent='Ingresa tu email y contraseña';return;}
+  btn.disabled=true;btn.textContent='Ingresando...';err.textContent='';
+  try{
+    const{data,error}=await sb.auth.signInWithPassword({email,password:pass});
+    if(error){
+      err.textContent=error.message==='Invalid login credentials'?'Email o contraseña incorrectos':error.message;
+      btn.disabled=false;btn.textContent='Ingresar';
+      return;
+    }
+    await checkAuth();
+    await loadFromDB();
+  }catch(e){
+    err.textContent='Error de conexión. Intenta de nuevo.';
+    btn.disabled=false;btn.textContent='Ingresar';
+  }
+}
+
+async function doLogout(){
+  if(!confirm('¿Cerrar sesión?'))return;
+  await sb.auth.signOut();
+  currentUser={id:null,nombre:'',email:'',rol:'ejecutivo'};
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app-main').style.display='none';
+  document.getElementById('login-email').value='';
+  document.getElementById('login-pass').value='';
+  document.getElementById('login-err').textContent='';
 }
 
 async function loadFromDB(){
@@ -855,7 +953,10 @@ async function saveP(p){
     await sb.from('permisos').insert({
       movil:p.movil,tipo:p.tipo,observaciones:p.obs,
       fecha_inicio:p.inicio,fecha_fin:p.fin,dias:p.dias,
-      semana_numero:S.semana,activo:true
+      semana_numero:S.semana,activo:true,
+      registrado_por:currentUser.nombre||'Sistema',
+      registrado_por_id:currentUser.id||null,
+      registrado_en:new Date().toISOString()
     });
     syncMsg('✓ Permiso guardado');
   }catch(e){console.error('saveP',e);}
@@ -867,7 +968,10 @@ async function saveNov(n){
       movil:n.movil,tipo:n.tipo,flota:n.flota,subflota:n.sub,
       flota_anterior:n.flotaAnt,subflota_anterior:n.subAnt,
       motivo:n.motivo,observaciones:n.obs,
-      fecha_registro:n.fecha,semana_numero:S.semana,activo:true
+      fecha_registro:n.fecha,semana_numero:S.semana,activo:true,
+      registrado_por:currentUser.nombre||'Sistema',
+      registrado_por_id:currentUser.id||null,
+      registrado_en:new Date().toISOString()
     });
   }catch(e){console.error('saveNov',e);}
 }
@@ -1248,6 +1352,7 @@ function renderPermisos(){
       <td style="font-size:10px">${p.inicio||p.fecha_inicio||'—'}</td>
       <td style="font-size:10px">${p.fin||p.fecha_fin||'—'}</td>
       <td style="text-align:center">${p.dias||'—'}</td>
+      <td style="font-size:10px;color:var(--g600)">${p.registrado_por||'—'}<div style="font-size:9px;color:var(--g400)">${p.registrado_en?new Date(p.registrado_en).toLocaleDateString('es-PE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—'}</div></td>
       <td><button class="btn sm ko" onclick="elimPerm('${p.movil}')"><i class="ti ti-trash"></i></button></td>
     </tr>`;
   }).join('');
@@ -1815,7 +1920,22 @@ function onMovilP(){
   const m=document.getElementById('mp-movil').value.trim();
   const c=S.conductores.find(x=>x.movil==m);
   const tarifa=c&&c.flota==='AEROPUERTO'&&c.cat&&c.sub?` · ${getTarifa(c.sub,c.cat)}`:'';
-  document.getElementById('mp-info').innerHTML=c?`<span style="font-size:11px">${c.flota} <span class="b sb" style="margin-left:3px">${c.sub}</span>${c.cat?` <span class="b ca" style="margin-left:2px">${c.cat}</span>`:''} · Fin: ${c.estFin} · ${svcs(c)} svc${c.esMem?' · <span class="b me">Membresía</span>':''}${tarifa}</span>`:m?'No encontrado':'';
+  // Verificar permiso duplicado
+  const permExist=S.permisos.find(x=>x.movil==m);
+  const salud=S.saludSeg.find(x=>x.movil==m);
+  let infoHtml='';
+  if(c){
+    infoHtml=`<span style="font-size:11px">${c.flota} <span class="b sb" style="margin-left:3px">${c.sub}</span>${c.cat?` <span class="b ca" style="margin-left:2px">${c.cat}</span>`:''} · Fin: ${c.estFin} · ${svcs(c)} svc${c.esMem?' · <span class="b me">Membresía</span>':''}${tarifa}</span>`;
+    if(permExist){
+      infoHtml+=`<div style="margin-top:4px;padding:5px 8px;background:var(--dal);border-radius:6px;font-size:10px;color:var(--da)"><i class="ti ti-alert-triangle"></i> Ya tiene permiso activo: <strong>${permExist.tipo}</strong> (${permExist.inicio||permExist.fecha_inicio||'—'}) — registrado por ${permExist.registrado_por||'—'}</div>`;
+    }
+    if(salud){
+      infoHtml+=`<div style="margin-top:4px;padding:5px 8px;background:var(--dal);border-radius:6px;font-size:10px;color:var(--da)"><i class="ti ti-heart-rate"></i> En seguimiento de salud desde ${salud.inicio||salud.fecha_inicio||'—'}</div>`;
+    }
+  } else {
+    infoHtml=m?'<span style="font-size:11px;color:var(--dr)">Móvil no encontrado en el padrón</span>':'';
+  }
+  document.getElementById('mp-info').innerHTML=infoHtml;
   document.getElementById('av-mem').style.display=c&&c.esMem?'block':'none';
 }
 
@@ -2229,7 +2349,7 @@ function mostrarDiff(){
 // =============================================
 // PIN / ROL
 // =============================================
-function toggleRol(){if(S.rol==='admin'){S.rol='ejecutivo';updRolUI();}else abrirPin();}
+function toggleRol(){/* Rol determinado por auth - no editable */}
 function abrirPin(){document.getElementById('pin-input').value='';document.getElementById('pin-err').textContent='';document.getElementById('pin-screen').style.display='flex';}
 function chkPin(){
   const v=document.getElementById('pin-input').value;
@@ -2252,7 +2372,18 @@ function goTab(tab){
 }
 
 setInterval(updateBanner,60000);
-loadFromDB();
+// Iniciar con verificación de auth
+(async()=>{
+  const ok=await checkAuth();
+  if(ok)await loadFromDB();
+})();
+// Escuchar cambios de sesión
+sb.auth.onAuthStateChange((event,session)=>{
+  if(event==='SIGNED_OUT'){
+    document.getElementById('login-screen').style.display='flex';
+    document.getElementById('app-main').style.display='none';
+  }
+});
 </script>
 </body>
 </html>
