@@ -1178,6 +1178,9 @@ function calcEstOp(c){
   if(PLAZAS.includes(c.flota))return['DESACTIVADO','EXPULSADO'].includes(c.estFin)?c.estFin:'ACTIVO';
   if(['DESACTIVADO','EXPULSADO'].includes(c.estFin))return c.estFin;
   if(c.bajaSem)return svcs(c)>0?'ACTIVO':'CONGELADO';
+  // Si no hay servicios cargados esta semana, respetar el estado_op que viene de Supabase
+  const hayServicios=S.servicios.wari||S.servicios.kusi||S.servicios.latam||S.servicios.sky;
+  if(!hayServicios&&c.estOp)return c.estOp;
   return svcs(c)>0?'ACTIVO':'CONGELADO';
 }
 
