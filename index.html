@@ -1053,7 +1053,7 @@ async function saveC(c){
     const d={movil:c.movil,flota:c.flota,subflota:c.sub,categoria_vehiculo:c.cat||null,
       cliente:c.cliente,es_membresia:c.esMem,
       fecha_inicio_membresia:c.fechaIniMem||null,fecha_fin_membresia:c.fechaFinMem||null,
-      estado_fin:c.estFin,estado_op:calcEstOp(c),
+      estado_fin:c.estFin,estado_op:getEstOp(c),
       observaciones:c.obs,motivo_salida:c.motivoSalida,semanas_congelado:c.sc,
       baja_semana:c.bajaSem,es_nuevo:c.esNuevo,semanas_sin_servicio:c.semSinSvc||0,
       fecha_inicio_servicio:c.fechaIniSvc||null,
@@ -1106,7 +1106,7 @@ async function saveHistorial(){
       const ss=S.saludSeg.find(x=>x.movil==c.movil);
       return{
         numero_semana:S.semana,movil:c.movil,flota:c.flota,subflota:c.sub,
-        categoria_vehiculo:c.cat||null,estado_fin:c.estFin,estado_op:calcEstOp(c),
+        categoria_vehiculo:c.cat||null,estado_fin:c.estFin,estado_op:getEstOp(c),
         observaciones:c.obs,motivo_salida:c.motivoSalida,
         wari:c.wari||0,kusi:c.kusi||0,sky:c.sky||0,
         permiso_tipo:p?.tipo||null,permiso_inicio:p?.inicio||p?.fecha_inicio||null,
@@ -1178,9 +1178,6 @@ function calcEstOp(c){
   if(PLAZAS.includes(c.flota))return['DESACTIVADO','EXPULSADO'].includes(c.estFin)?c.estFin:'ACTIVO';
   if(['DESACTIVADO','EXPULSADO'].includes(c.estFin))return c.estFin;
   if(c.bajaSem)return svcs(c)>0?'ACTIVO':'CONGELADO';
-  // Si no hay servicios cargados esta semana, respetar el estado_op que viene de Supabase
-  const hayServicios=S.servicios.wari||S.servicios.kusi||S.servicios.latam||S.servicios.sky;
-  if(!hayServicios&&c.estOp)return c.estOp;
   return svcs(c)>0?'ACTIVO':'CONGELADO';
 }
 
@@ -1278,15 +1275,21 @@ function render(){
   updNavDots();updBtns();renderHistRep();initSegSemanas();
 }
 
+function getEstOp(c){
+  const hayServicios=S.servicios.wari||S.servicios.kusi||S.servicios.latam||S.servicios.sky;
+  if(!hayServicios)return c.estOp||calcEstOp(c);
+  return calcEstOp(c);
+}
+
 function updMetrics(){
   const nfp=c=>!FLIT.includes(c.flota);
   // Financiero: EXPULSADO se cuenta como DESACTIVADO
   document.getElementById('f-ac').textContent=S.conductores.filter(c=>nfp(c)&&c.estFin==='ACTIVO').length;
   document.getElementById('f-co').textContent=S.conductores.filter(c=>nfp(c)&&c.estFin==='CONGELADO').length;
   document.getElementById('f-de').textContent=S.conductores.filter(c=>nfp(c)&&['DESACTIVADO','EXPULSADO'].includes(c.estFin)).length;
-  // Operativo: EXPULSADO aparece por separado
+  // Operativo: usa estOp de BD si no hay servicios cargados
   ['ACTIVO','CONGELADO','DESACTIVADO','EXPULSADO'].forEach((e,i)=>{
-    document.getElementById(['o-ac','o-co','o-de','o-ex'][i]).textContent=S.conductores.filter(c=>nfp(c)&&calcEstOp(c)===e).length;
+    document.getElementById(['o-ac','o-co','o-de','o-ex'][i]).textContent=S.conductores.filter(c=>nfp(c)&&getEstOp(c)===e).length;
   });
 }
 
@@ -1344,7 +1347,7 @@ function renderMotivosDash(){
 
 function renderFP(){
   const fp=S.conductores.filter(c=>FLIT.includes(c.flota));
-  const actOp=fp.filter(c=>calcEstOp(c)==='ACTIVO').length;
+  const actOp=fp.filter(c=>getEstOp(c)==='ACTIVO').length;
   document.getElementById('fp-res').textContent=fp.length?`${fp.length} unidades FLIT · Operativo: ${actOp} activas en pista · Sin desactivación automática`:'Sin unidades FLIT registradas';
 }
 
@@ -1400,7 +1403,7 @@ function renderPadron(){
     const al=alM.has(c.movil);
     const esFP=FLIT.includes(c.flota);
     const ss=S.saludSeg.find(x=>x.movil==c.movil);
-    const estOp=calcEstOp(c);
+    const estOp=getEstOp(c);
     const tarifa=c.flota==='AEROPUERTO'&&c.cat&&c.sub?getTarifa(c.sub,c.cat):'';
     // Estado financiero: expulsado se muestra como desactivado
     const estFinMostrar=c.estFin==='EXPULSADO'?'DESACTIVADO':c.estFin;
@@ -1526,7 +1529,7 @@ function renderPlazas(){
   if(!movs.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty" style="padding:14px"><i class="ti ti-building-store"></i>Sin movimientos esta semana</div></td></tr>`;return;}
   tbody.innerHTML=movs.map(m=>{
     const c=S.conductores.find(x=>x.movil==m.movil);
-    const ef=c?c.estFin:'—';const eo=c?calcEstOp(c):'—';
+    const ef=c?c.estFin:'—';const eo=c?getEstOp(c):'—';
     return `<tr>
       <td style="font-weight:600;color:var(--db)">${m.movil}</td>
       <td><span class="b pl">${m.base}</span></td>
@@ -1781,7 +1784,7 @@ function buscarConductor(){
   if(!matches.length){el.innerHTML=`<div class="empty"><i class="ti ti-search"></i>Sin resultados para "${q}"</div>`;return;}
   el.innerHTML=matches.map(c=>{
     const ss=S.saludSeg.find(x=>x.movil==c.movil);
-    const estOp=calcEstOp(c);const esFP=FLIT.includes(c.flota);
+    const estOp=getEstOp(c);const esFP=FLIT.includes(c.flota);
     const hist=[...S.historial.filter(h=>h.movil==c.movil)].sort((a,b)=>b.numero_semana-a.numero_semana);
     const permSem=S.permisos.find(p=>p.movil==c.movil);
     const permAno=hist.filter(h=>h.permiso_tipo).length+(permSem?1:0);
@@ -1862,7 +1865,7 @@ function renderInd(){
   const tipo=document.getElementById('ind-tipo').value;
   const getEst=c=>tipo==='fin'?c.estado_fin:(c.estado_op||calcEstOp(c));
   const filtrar=c=>(flotaF==='all'||c.flota===flotaF)&&(subF==='all'||c.subflota===subF||c.sub===subF);
-  const actCur=S.conductores.filter(c=>filtrar(c)&&(tipo==='fin'?c.estFin==='ACTIVO':calcEstOp(c)==='ACTIVO')).length;
+  const actCur=S.conductores.filter(c=>filtrar(c)&&(tipo==='fin'?c.estFin==='ACTIVO':getEstOp(c)==='ACTIVO')).length;
   const conCur=S.conductores.filter(c=>filtrar(c)&&(tipo==='fin'?c.estFin==='CONGELADO':calcEstOp(c)==='CONGELADO')).length;
   const desCur=S.conductores.filter(c=>filtrar(c)&&['DESACTIVADO','EXPULSADO'].includes(tipo==='fin'?c.estFin:calcEstOp(c))).length;
   let sems=S.historial;
@@ -1922,7 +1925,7 @@ function renderRevP1(){
     const act=cds.filter(c=>estadosRev[c.movil]==='ACTIVO').length;
     const con=cds.filter(c=>estadosRev[c.movil]==='CONGELADO').length;
     const des=cds.filter(c=>['DESACTIVADO','EXPULSADO'].includes(estadosRev[c.movil]||'')).length;
-    const actO=cds.filter(c=>calcEstOp(c)==='ACTIVO').length;
+    const actO=cds.filter(c=>getEstOp(c)==='ACTIVO').length;
     el.innerHTML+=`<div class="fb"><div class="fh">
       <span style="font-size:12px;font-weight:600">${f}</span>
       <div style="display:flex;gap:5px;align-items:center">
@@ -2012,7 +2015,7 @@ async function confirmarCierre(){
     if(FLIT.includes(c.flota)||PLAZAS.includes(c.flota))continue;
     if(c.estFin==='CONGELADO'){c.sc=(c.sc||0)+1;}
     const ss=S.saludSeg.find(x=>x.movil==c.movil);
-    if(!ss&&AUTO_DESACT.includes(c.flota)&&c.sc>=3&&c.estFin==='CONGELADO')c.estFin='DESACTIVADO'; // URBANO o AEROLINEAS: 3 sem congelado = DESACTIVADO
+    if(!ss&&AUTO_DESACT.includes(c.flota)&&c.sc>=3&&c.estFin==='CONGELADO'){c.estFin='DESACTIVADO';}
     c.esNuevo=false;
     await saveC(c);
   }
