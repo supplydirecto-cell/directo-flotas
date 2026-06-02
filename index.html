@@ -1282,14 +1282,14 @@ function getEstOp(c){
 }
 
 function updMetrics(){
-  const nfp=c=>!FLIT.includes(c.flota);
-  // Financiero: EXPULSADO se cuenta como DESACTIVADO
-  document.getElementById('f-ac').textContent=S.conductores.filter(c=>nfp(c)&&c.estFin==='ACTIVO').length;
-  document.getElementById('f-co').textContent=S.conductores.filter(c=>nfp(c)&&c.estFin==='CONGELADO').length;
-  document.getElementById('f-de').textContent=S.conductores.filter(c=>nfp(c)&&['DESACTIVADO','EXPULSADO'].includes(c.estFin)).length;
-  // Operativo: usa estOp de BD si no hay servicios cargados
+  // Financiero — excluir FLIT (tienen estFin='FLIT', no son parte del reporte financiero)
+  const parFin=S.conductores.filter(c=>!FLIT.includes(c.flota));
+  document.getElementById('f-ac').textContent=parFin.filter(c=>c.estFin==='ACTIVO').length;
+  document.getElementById('f-co').textContent=parFin.filter(c=>c.estFin==='CONGELADO').length;
+  document.getElementById('f-de').textContent=parFin.filter(c=>['DESACTIVADO','EXPULSADO'].includes(c.estFin)).length;
+  // Operativo — todos los conductores (FLIT y PLAZAS también suman)
   ['ACTIVO','CONGELADO','DESACTIVADO','EXPULSADO'].forEach((e,i)=>{
-    document.getElementById(['o-ac','o-co','o-de','o-ex'][i]).textContent=S.conductores.filter(c=>nfp(c)&&getEstOp(c)===e).length;
+    document.getElementById(['o-ac','o-co','o-de','o-ex'][i]).textContent=S.conductores.filter(c=>getEstOp(c)===e).length;
   });
 }
 
