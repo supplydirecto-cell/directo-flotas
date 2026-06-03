@@ -2397,7 +2397,7 @@ async function cerrarPermiso(movil){
   }catch(e){console.error('cerrarPermiso',e);}
 }
 
-function elimPerm(movil){
+async function elimPerm(movil){
   if(!confirm('¿Eliminar permiso?'))return;
   S.permisos=S.permisos.filter(p=>p.movil!=movil);
   try{await sb.from('permisos').update({activo:false}).eq('movil',movil);}catch(e){}
