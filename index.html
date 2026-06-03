@@ -2535,8 +2535,7 @@ function openNov(tipo){
   document.getElementById('nov-mot-g').style.display=tipo==='desactivar'?'block':'none';
   document.getElementById('nov-ant-g').style.display=['cambio_flota','baja_semana'].includes(tipo)?'block':'none';
   document.getElementById('nov-sant-g').style.display=tipo==='cambio_flota'?'block':'none';
-  document.getElementById('nov-fecha-g').style.display='none';
-  document.getElementById('av-baja').style.display=tipo==='baja_semana'?'block':'none';
+  const avBaja=document.getElementById('av-baja');if(avBaja)avBaja.style.display=tipo==='baja_semana'?'block':'none';
   // Campos vehículo
   const showVeh=['nuevo','reactivacion','cambio_flota','cambio_categoria'].includes(tipo);
   const vehG=document.getElementById('nov-vehiculo-g');if(vehG)vehG.style.display=showVeh?'block':'none';
