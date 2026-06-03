@@ -1898,20 +1898,24 @@ function initSelects(){
 // BUSCADOR
 // =============================================
 function buscarConductor(){
-  const q=document.getElementById('bus-input').value.trim();
+  const q=document.getElementById('bus-input').value.trim().toLowerCase();
   const el=document.getElementById('bus-res');const hint=document.getElementById('bus-hint');
-  if(q.length<1){el.innerHTML='';hint.textContent='';return;}
-  const matches=S.conductores.filter(c=>
-    c.movil.includes(q)||
-    (c.placa||'').toLowerCase().includes(q)||
-    (c.sub||'').toLowerCase().includes(q)
-  );
-  // Aplicar filtros adicionales
   const busFlota=document.getElementById('bus-flota')?.value||'';
   const busSub=document.getElementById('bus-sub')?.value||'';
   const busEst=document.getElementById('bus-estado')?.value||'';
   const busMemTipo=document.getElementById('bus-mem-tipo')?.value||'';
-  let filtered=matches;
+  const hayFiltro=q.length>0||busFlota||busSub||busEst||busMemTipo;
+  if(!hayFiltro){el.innerHTML='<div style="font-size:11px;color:var(--g400);padding:8px">Escribe un móvil o selecciona un filtro para buscar</div>';hint.textContent='';return;}
+  // Partir de todos los conductores
+  let filtered=S.conductores;
+  // Filtro texto
+  if(q.length>0)filtered=filtered.filter(c=>
+    c.movil.toLowerCase().includes(q)||
+    (c.placa||'').toLowerCase().includes(q)||
+    (c.sub||'').toLowerCase().includes(q)||
+    (c.flota||'').toLowerCase().includes(q)
+  );
+  // Filtros dropdown
   if(busFlota)filtered=filtered.filter(c=>c.flota===busFlota);
   if(busSub)filtered=filtered.filter(c=>c.sub===busSub);
   if(busEst)filtered=filtered.filter(c=>c.estFin===busEst);
@@ -1919,6 +1923,9 @@ function buscarConductor(){
   else if(busMemTipo==='mem_diurna')filtered=filtered.filter(c=>c.sub==='Membresía Diurna');
   else if(busMemTipo==='mem_nocturna')filtered=filtered.filter(c=>c.sub==='Membresía Nocturna');
   else if(busMemTipo==='todas_mem')filtered=filtered.filter(c=>c.esMem);
+  hint.textContent=filtered.length?`${filtered.length} encontrado${filtered.length>1?'s':''}`:' ';
+  if(!filtered.length){el.innerHTML=`<div class="empty"><i class="ti ti-search"></i>Sin resultados</div>`;return;}
+  const matches_limit=filtered.slice(0,20);
   hint.textContent=filtered.length?`${filtered.length} encontrado${filtered.length>1?'s':''}`:' ';
   if(!filtered.length){el.innerHTML=`<div class="empty"><i class="ti ti-search"></i>Sin resultados para "${q}"</div>`;return;}
   const matches_limit=filtered.slice(0,20); // mostrar máximo 20
