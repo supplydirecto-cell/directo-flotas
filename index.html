@@ -338,7 +338,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
   </div>
   <div id="salud-sec"></div>
   <div id="otros-tit" style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--g600);margin-bottom:8px"></div>
-  <div class="tw"><table>
+  <div class="tw" style="overflow-x:auto"><table style="min-width:900px">
     <thead><tr>
       <th style="width:60px">Móvil</th><th style="width:95px">Flota</th><th style="width:75px">Subflota</th>
       <th style="width:108px">Tipo</th><th>Motivo</th>
@@ -370,6 +370,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
       <th style="width:80px">Trámite</th>
       <th style="width:80px">Efecto</th>
       <th style="width:90px">Registrado por</th>
+      <th style="width:70px">Acciones</th>
     </tr></thead>
     <tbody id="nov-tb"></tbody>
   </table></div>
@@ -1169,6 +1170,9 @@ async function saveC(c){
     if(c.id)await sb.from('conductores').update(d).eq('id',c.id);
     else{const{data:r}=await sb.from('conductores').insert(d).select().single();if(r)c.id=r.id;}
     syncMsg('✓ Guardado');
+    // Re-render automático tras guardar
+    if(document.getElementById('tab-padron')?.classList.contains('active'))renderPadron();
+    if(document.getElementById('tab-dashboard')?.classList.contains('active'))updMetrics();
   }catch(e){console.error('saveC',e);}
 }
 
@@ -1192,10 +1196,12 @@ async function saveNov(n){
       movil:n.movil,tipo:n.tipo,flota:n.flota,subflota:n.sub,
       flota_anterior:n.flotaAnt,subflota_anterior:n.subAnt,
       motivo:n.motivo,observaciones:n.obs,
-      fecha_registro:n.fecha,semana_numero:S.semana,activo:true,
+      fecha_registro:n.fecha,semana_numero:n.semana_numero||S.semana,activo:true,
       registrado_por:currentUser.nombre||'Sistema',
       registrado_por_id:currentUser.id||null,
-      registrado_en:new Date().toISOString()
+      registrado_en:new Date().toISOString(),
+      fecha_tramite:n.fecha_tramite||n.fecha||null,
+      fecha_efecto:n.fecha_efecto||null
     });
   }catch(e){console.error('saveNov',e);}
 }
@@ -1314,9 +1320,7 @@ function calcEstFinProp(c){
 // =============================================
 function genAlertas(){
   const al=[];
-  // Solo alertar si hay servicios cargados esta semana
   const hayServicios=S.servicios.wari||S.servicios.kusi||S.servicios.latam||S.servicios.sky;
-  // Permisos registrados ESTA semana (no históricos)
   const permsSemActual=S.permisos.filter(p=>p.semana_numero===S.semana||!p.semana_numero);
   const hayActividad=hayServicios||permsSemActual.length>0;
   if(!hayActividad)return al;
@@ -1326,8 +1330,29 @@ function genAlertas(){
     const p=S.permisos.find(x=>x.movil==c.movil);
     const ss=S.saludSeg.find(x=>x.movil==c.movil);
     const total=svcs(c);
+    const esMem=c.flota==='AEROPUERTO'||c.sub==='Membresía Urbano';
+    const esAero=c.flota==='AEROPUERTO';
 
-    // Nuevos Aeropuerto sin servicios (semanas 1,2 info / sem 3 bloqueante)
+    // ── ALERTA PARA TODOS LOS PERMISOS ──
+    // Cualquier permiso registrado genera alerta para definir estado financiero
+    if(p&&!S.alertasDec[`perm_${c.movil}`]){
+      const nivel=esMem||esAero?'bloq':'info';
+      const msg=esMem
+        ?`Permiso: ${p.tipo} — membresía activa, define si aplica cobro esta semana`
+        :esAero
+          ?`Permiso: ${p.tipo} — Aeropuerto, define estado financiero`
+          :`Permiso: ${p.tipo} — verifica estado financiero`;
+      al.push({id:`perm_${c.movil}`,tipo:'permiso',nivel,movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg});
+    }
+
+    // ── SALUD ── alerta para todos con permiso de salud
+    if(ss&&!S.alertasDec[`sal_${c.movil}`]){
+      const nivel=esMem||esAero?'bloq':'info';
+      al.push({id:`sal_${c.movil}`,tipo:'salud_0',nivel,movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,
+        msg:`Seguimiento salud activo${hayServicios&&total===0?' + 0 servicios':''} — define estado financiero`});
+    }
+
+    // ── NUEVOS AEROPUERTO ──
     if(c.esNuevo&&c.flota==='AEROPUERTO'&&total===0){
       const nsv=c.semSinSvc||0;
       if(nsv>=2&&!S.alertasDec[`nsv3_${c.movil}`])
@@ -1337,24 +1362,21 @@ function genAlertas(){
       else if(nsv===0&&!S.alertasDec[`nsv1_${c.movil}`])
         al.push({id:`nsv1_${c.movil}`,tipo:'nsv1',nivel:'info',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:`Conductor nuevo sin servicios esta semana`});
     }
-    // Nuevo Aeropuerto con servicios sin fecha confirmada
     if(c.esNuevo&&c.flota==='AEROPUERTO'&&total>0&&!c.fechaIniSvc&&!S.alertasDec[`naero_${c.movil}`])
-      al.push({id:`naero_${c.movil}`,tipo:'nuevo_aero',nivel:'bloq',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:`Nuevo con ${total} servicio${total!==1?'s':''}. Verifica fecha de inicio de membresía.`});
-    // Choque + 0 servicios
-    if(p&&p.tipo==='Choque / accidente'&&total===0&&!S.alertasDec[`chq_${c.movil}`])
-      al.push({id:`chq_${c.movil}`,tipo:'choque',nivel:'bloq',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:'Choque registrado con 0 servicios — define estado financiero'});
-    // Membresía congelada sin permiso — solo con servicios cargados
-    if(hayServicios&&c.esMem&&c.estFin==='CONGELADO'&&!p&&!ss&&!c.bajaSem&&!S.alertasDec[`mem_${c.movil}`])
-      al.push({id:`mem_${c.movil}`,tipo:'mem_sin_perm',nivel:'bloq',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:'Congelado sin permiso — membresía activa, riesgo de cobro incorrecto'});
-    // Membresía 0 servicios sin permiso — solo si hay servicios cargados
-    if(hayServicios&&c.esMem&&total===0&&!p&&!ss&&!c.bajaSem&&!S.alertasDec[`m0_${c.movil}`])
-      al.push({id:`m0_${c.movil}`,tipo:'mem_0svc',nivel:'bloq',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:'0 servicios sin justificación — membresía activa'});
-    // Salud 0 servicios
-    if(ss&&total===0&&c.esMem&&!S.alertasDec[`sal_${c.movil}`])
-      al.push({id:`sal_${c.movil}`,tipo:'salud_0',nivel:'bloq',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:`Permiso salud activo + 0 servicios esta semana — validar`});
-    // 2+ semanas congelado — solo si hay servicios cargados (semana real en curso)
-    if(hayServicios&&c.sc>=2&&c.estFin==='CONGELADO'&&!ss&&AUTO_DESACT.includes(c.flota)&&!S.alertasDec[`2s_${c.movil}`])
-      al.push({id:`2s_${c.movil}`,tipo:'2sem',nivel:'bloq',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:`${c.sc} semanas congelado — confirma DESACTIVADO o justifica continuidad`});
+      al.push({id:`naero_${c.movil}`,tipo:'nuevo_aero',nivel:'bloq',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:`Nuevo con ${total} servicio${total!==1?'s':''}. Confirma fecha de inicio de membresía.`});
+
+    // ── CON SERVICIOS CARGADOS ──
+    if(hayServicios){
+      // Membresía congelada sin permiso ni salud
+      if(esMem&&c.estFin==='CONGELADO'&&!p&&!ss&&!c.bajaSem&&!S.alertasDec[`mem_${c.movil}`])
+        al.push({id:`mem_${c.movil}`,tipo:'mem_sin_perm',nivel:'bloq',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:'Congelado sin permiso — membresía activa, riesgo de cobro incorrecto'});
+      // Membresía 0 servicios sin permiso
+      if(esMem&&total===0&&!p&&!ss&&!c.bajaSem&&!S.alertasDec[`m0_${c.movil}`])
+        al.push({id:`m0_${c.movil}`,tipo:'mem_0svc',nivel:'bloq',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:'0 servicios sin justificación — membresía activa'});
+      // 2+ semanas congelado
+      if(c.sc>=2&&c.estFin==='CONGELADO'&&!ss&&AUTO_DESACT.includes(c.flota)&&!S.alertasDec[`2s_${c.movil}`])
+        al.push({id:`2s_${c.movil}`,tipo:'2sem',nivel:'bloq',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:`${c.sc} semanas congelado — confirma DESACTIVADO o justifica continuidad`});
+    }
   });
   return al;
 }
@@ -1390,6 +1412,7 @@ function render(){
   updateBanner();updMetrics();renderChartFlota();renderAlOp();renderPermDash();renderMotivosDash();renderFP();
   renderPadron();renderPermisos();renderNovedades();renderPlazas();renderAlertas();renderPendProx();
   updNavDots();updBtns();renderHistRep();initSegSemanas();
+  if(document.getElementById('tab-seguimiento')?.classList.contains('active'))renderSeguimiento();
 }
 
 function getEstOp(c){
@@ -1649,10 +1672,10 @@ function renderPermisos(){
       <td style="font-size:10px">${p.fin||p.fecha_fin||'—'}</td>
       <td style="text-align:center">${p.dias||'—'}</td>
       <td style="font-size:10px;color:var(--g600)">${p.registrado_por||'—'}<div style="font-size:9px;color:var(--g400)">${p.registrado_en?new Date(p.registrado_en).toLocaleDateString('es-PE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—'}</div></td>
-      <td style="display:flex;gap:4px">
-        <button class="btn sm" onclick="openPermiso('${p.movil}')" title="Editar"><i class="ti ti-edit"></i></button>
-        <button class="btn sm ko" onclick="elimPerm('${p.movil}')" title="Eliminar"><i class="ti ti-trash"></i></button>
-        ${!(p.fecha_fin||p.fin)?'<button class="btn sm ok" onclick="cerrarPermiso(\''+p.movil+'\')" title="Cerrar permiso"><i class="ti ti-check"></i></button>':''}
+      <td style="white-space:nowrap">
+        <button class="btn sm" onclick="openPermiso('${p.movil}')" title="Editar" style="margin-right:3px"><i class="ti ti-edit"></i></button>
+        <button class="btn sm ko" onclick="elimPerm('${p.movil}')" title="Eliminar" style="margin-right:3px"><i class="ti ti-trash"></i></button>
+        ${!(p.fecha_fin||p.fin)?'<button class="btn sm ok" onclick="cerrarPermiso(''+p.movil+'')" title="Cerrar"><i class="ti ti-check"></i> Cerrar</button>':''}
       </td>
     </tr>`;
   }).join('');
@@ -1661,6 +1684,40 @@ function renderPermisos(){
 // =============================================
 // NOVEDADES
 // =============================================
+function editNov(idx){
+  const n=S.novedades[idx];if(!n)return;
+  // Abrir modal con datos precargados
+  openNov(n.tipo);
+  setTimeout(()=>{
+    document.getElementById('nov-movil').value=n.movil;
+    document.getElementById('nov-flota').value=n.flota||'AEROPUERTO';
+    updSubsNov();
+    setTimeout(()=>{
+      if(n.sub||n.subflota)document.getElementById('nov-sub').value=n.sub||n.subflota||'';
+      document.getElementById('nov-obs').value=n.obs||n.observaciones||'';
+      if(n.fecha_tramite&&document.getElementById('nov-fecha-tramite'))
+        document.getElementById('nov-fecha-tramite').value=n.fecha_tramite;
+      if(n.fecha_efecto&&document.getElementById('nov-fecha-efecto'))
+        document.getElementById('nov-fecha-efecto').value=n.fecha_efecto;
+      onMovilN();
+    },100);
+  },50);
+  // Guardar el índice para editar en lugar de crear nuevo
+  document.getElementById('m-novedad').dataset.editIdx=idx;
+}
+
+async function elimNov(idx){
+  const n=S.novedades[idx];if(!n)return;
+  if(!confirm('¿Eliminar esta novedad? (Móvil '+n.movil+' — '+n.tipo.replace(/_/g,' ')+')'))return;
+  S.novedades.splice(idx,1);
+  try{
+    // Eliminar de Supabase — buscar por movil + tipo + semana
+    await sb.from('novedades').delete().eq('movil',n.movil).eq('tipo',n.tipo).eq('semana_numero',S.semana);
+    syncMsg('✓ Novedad eliminada');
+  }catch(e){console.error('elimNov',e);}
+  renderNovedades();
+}
+
 function renderNovedades(){
   const tbody=document.getElementById('nov-tb');
   if(!S.novedades.length){tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><i class="ti ti-user-plus"></i>Sin novedades esta semana</div></td></tr>`;return;}
@@ -1673,6 +1730,10 @@ function renderNovedades(){
     <td style="font-size:10px;color:var(--g600)">${n.fecha_tramite||n.fecha||n.fecha_registro||'—'}</td>
     <td style="font-size:10px;font-weight:${n.fecha_efecto&&n.fecha_efecto!==(n.fecha_tramite||n.fecha)?'600':'400'};color:${n.fecha_efecto&&n.fecha_efecto!==(n.fecha_tramite||n.fecha)?'var(--db)':'var(--g600)'}">${n.fecha_efecto||n.fecha||'—'}</td>
     <td style="font-size:10px;color:var(--g600)">${n.registrado_por||'—'}</td>
+    <td style="white-space:nowrap">
+      <button class="btn sm" onclick="editNov(${S.novedades.indexOf(n)})" title="Editar" style="margin-right:3px"><i class="ti ti-edit"></i></button>
+      <button class="btn sm ko" onclick="elimNov(${S.novedades.indexOf(n)})" title="Eliminar"><i class="ti ti-trash"></i></button>
+    </td>
   </tr>`).join('');
 }
 
