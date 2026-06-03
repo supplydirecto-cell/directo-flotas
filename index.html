@@ -318,8 +318,21 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
 
 <!-- PERMISOS -->
 <div id="tab-permisos" class="tab">
-  <div class="tbar">
+  <div class="tbar" style="flex-wrap:wrap;gap:8px">
     <button class="btn pri" onclick="openPermiso()"><i class="ti ti-plus"></i> Registrar permiso</button>
+    <select class="fsel" id="pf-tipo" onchange="renderPermisos()">
+      <option value="">Todos los tipos</option>
+      <option>Salud / reposo médico</option><option>Choque / accidente</option>
+      <option>Auto en taller</option><option>Viaje de emergencia</option>
+      <option>Sin acceso LAP</option><option>Fuerza mayor</option><option>Otro</option>
+    </select>
+    <select class="fsel" id="pf-flota" onchange="renderPermisos()">
+      <option value="">Todas las flotas</option>
+      <option>AEROPUERTO</option><option>URBANO</option><option>AEROLINEAS</option><option>PLAZAS</option>
+    </select>
+    <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--g600);cursor:pointer">
+      <input type="checkbox" id="pf-abiertos" onchange="renderPermisos()"> Solo abiertos
+    </label>
     <span style="flex:1"></span>
     <span style="font-size:10px;color:var(--g600)" id="perm-cnt"></span>
   </div>
@@ -352,8 +365,11 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
   <div class="tw"><table>
     <thead><tr>
       <th style="width:60px">Móvil</th><th style="width:93px">Tipo</th>
-      <th style="width:115px">Flota / Sub</th><th style="width:115px">Anterior</th>
-      <th>Observación / Motivo</th><th style="width:78px">Fecha</th>
+      <th style="width:110px">Flota / Sub</th><th style="width:100px">Anterior</th>
+      <th>Observación / Motivo</th>
+      <th style="width:80px">Trámite</th>
+      <th style="width:80px">Efecto</th>
+      <th style="width:90px">Registrado por</th>
     </tr></thead>
     <tbody id="nov-tb"></tbody>
   </table></div>
@@ -699,9 +715,10 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
 
 <!-- MODALES -->
 <div class="mbg" id="m-permiso" style="display:none">
-  <div class="modal">
-    <h3><i class="ti ti-clipboard-list" style="margin-right:6px;color:var(--db)"></i>Registrar permiso</h3>
-    <div class="fg"><label>Móvil</label><input type="text" id="mp-movil" placeholder="Ej: 205" oninput="onMovilP()"></div>
+  <div class="modal" style="width:520px">
+    <h3><i class="ti ti-clipboard-list" style="margin-right:6px;color:var(--db)"></i><span id="mp-tit">Registrar permiso</span></h3>
+    <input type="hidden" id="mp-edit-movil">
+    <div class="fg"><label>Móvil</label><input type="text" id="mp-movil" placeholder="Ej: 205" oninput="onMovilP()" autocomplete="off"></div>
     <div id="mp-info" style="font-size:11px;color:var(--g600);margin-bottom:9px;min-height:15px"></div>
     <div class="fg"><label>Tipo de permiso</label>
       <select id="mp-tipo" onchange="onTipoP()">
@@ -713,46 +730,54 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
     <div id="av-choque" class="ibox ch" style="display:none"><i class="ti ti-alert-triangle"></i> <strong>Alerta financiera:</strong> se registrará si tiene 0 servicios.</div>
     <div id="av-salud" class="ibox sa" style="display:none"><i class="ti ti-heart-rate"></i> <strong>Salud:</strong> seguimiento semanal con alerta si no hace servicios.</div>
     <div id="av-mem" class="ibox pu" style="display:none"><i class="ti ti-mail"></i> <strong>Membresía urbana:</strong> recuerda enviar correo a Finanzas.</div>
-    <div class="fg"><label>Observación / diagnóstico</label><textarea id="mp-obs" placeholder="Describe el motivo..."></textarea></div>
+    <div class="fg"><label>Observación / diagnóstico</label><textarea id="mp-obs" placeholder="Describe el motivo o diagnóstico..."></textarea></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div class="fg"><label>Fecha inicio</label><input type="date" id="mp-ini"></div>
-      <div class="fg"><label>Fecha fin</label><input type="date" id="mp-fin" oninput="calcD()"></div>
+      <div class="fg">
+        <label>Fecha fin <span style="font-size:9px;color:var(--g400)">(opcional si no se sabe)</span></label>
+        <input type="date" id="mp-fin" oninput="calcD()">
+        <label style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--g600);margin-top:4px;cursor:pointer">
+          <input type="checkbox" id="mp-fin-abierto" onchange="toggleFinAbierto()"> No sé cuándo termina — dejar abierto
+        </label>
+      </div>
     </div>
     <div style="font-size:11px;color:var(--g600);margin-bottom:7px" id="mp-dias"></div>
+    <div id="av-abierto" class="ibox in" style="display:none">
+      <i class="ti ti-info-circle"></i> El permiso quedará abierto. Debes cerrarlo manualmente cuando el conductor confirme su regreso.
+    </div>
     <div class="ma">
       <button class="btn" onclick="cm('m-permiso')">Cancelar</button>
-      <button class="btn pri" onclick="guardarPermiso()">Guardar permiso</button>
+      <button class="btn pri" onclick="guardarPermiso()"><span id="mp-btn-txt">Guardar permiso</span></button>
     </div>
   </div>
 </div>
 
 <div class="mbg" id="m-novedad" style="display:none">
-  <div class="modal">
+  <div class="modal" style="width:560px">
     <h3 id="nov-tit">Novedad</h3>
     <input type="hidden" id="nov-tipo">
-    <div class="fg"><label>Móvil</label><input type="text" id="nov-movil" placeholder="Ej: 3450" oninput="onMovilN()"></div>
+    <div class="fg"><label>Móvil</label><input type="text" id="nov-movil" placeholder="Ej: 3450" oninput="onMovilN()" autocomplete="off"></div>
     <div id="nov-actual" style="font-size:11px;color:var(--g600);margin-bottom:8px;min-height:15px"></div>
-    <div id="av-baja" class="ibox sa" style="display:none"><i class="ti ti-info-circle"></i> <strong>Baja mitad semana:</strong> Fin=CONGELADO esta semana, Op=ACTIVO si hizo servicios. Próxima → DESACTIVADO.</div>
-    <div id="av-prox" class="ibox pu" style="display:none"><i class="ti ti-calendar"></i> <strong>Aeropuerto:</strong> Si es próxima semana, indica la fecha de inicio exacta.</div>
-    <div id="av-prox-lunes" class="ibox in" style="display:none"><i class="ti ti-clock"></i> <strong>Entra en vigor el próximo lunes.</strong> Este cambio se registra ahora pero se aplica en el siguiente reporte.</div>
+    <div id="av-baja" class="ibox sa" style="display:none"><i class="ti ti-info-circle"></i> <strong>Baja mitad semana:</strong> Fin=CONGELADO esta semana. Próxima → DESACTIVADO.</div>
+    <div id="av-prox-lunes" class="ibox in" style="display:none"><i class="ti ti-clock"></i> <strong>Entra en vigor el próximo lunes.</strong> Aparece en el reporte de la semana siguiente.</div>
     <div class="fg"><label>Flota</label>
       <select id="nov-flota" onchange="updSubsNov()">
         <option>AEROPUERTO</option><option>URBANO</option><option>AEROLINEAS</option>
         <option>PLAZAS</option><option>FLIT</option>
       </select>
     </div>
-    <div class="fg"><label>Subflota</label><select id="nov-sub"></select></div>
+    <div class="fg"><label>Subflota</label><select id="nov-sub" onchange="updCatsParaSub()"></select></div>
+    <div class="fg" id="nov-cat-g" style="display:none">
+      <label>Categoría (Aeropuerto) — determina tarifa de membresía</label>
+      <select id="nov-cat"></select>
+      <div id="nov-cat-tarifa" style="font-size:10px;color:var(--g600);margin-top:3px"></div>
+    </div>
     <div class="fg" id="nov-vehiculo-g" style="display:none">
       <label>Datos del vehículo</label>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div><label style="font-size:10px;color:var(--g600)">Placa</label><input type="text" id="nov-placa" placeholder="Ej: ABC-123" style="text-transform:uppercase"></div>
         <div><label style="font-size:10px;color:var(--g600)">Tipo de vehículo</label><input type="text" id="nov-tipo-vehiculo" placeholder="Ej: Sedan, SUV, Van"></div>
       </div>
-    </div>
-    <div class="fg" id="nov-cat-g" style="display:none">
-      <label>Categoría (Aeropuerto) — determina tarifa de membresía</label>
-      <select id="nov-cat"><option>Lite</option><option>Confort</option><option>Confort XL</option><option>XL</option><option>Van</option></select>
-      <div id="nov-cat-tarifa" style="font-size:10px;color:var(--g600);margin-top:3px"></div>
     </div>
     <div class="fg" id="nov-ant-g" style="display:none"><label>Flota anterior</label>
       <select id="nov-fant" onchange="updSubsNovAnt()">
@@ -769,12 +794,20 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
         <option>Baja temporada</option><option>Maltrato</option><option>Mal comportamiento</option><option>Otro</option>
       </select>
     </div>
-    <div class="fg" id="nov-fecha-g" style="display:none">
-      <label>Fecha de inicio (si es próxima semana)</label>
-      <input type="date" id="nov-fecha">
+    <!-- FECHAS -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
+      <div class="fg" style="margin-bottom:0">
+        <label>Fecha de trámite <span style="font-size:9px;color:var(--g400)">(hoy, automática)</span></label>
+        <input type="date" id="nov-fecha-tramite" style="background:var(--g50)">
+      </div>
+      <div class="fg" id="nov-fecha-efecto-g" style="margin-bottom:0">
+        <label id="nov-fecha-efecto-lbl">Fecha de efecto</label>
+        <input type="date" id="nov-fecha-efecto">
+        <div id="nov-fecha-efecto-hint" style="font-size:9px;color:var(--g600);margin-top:2px"></div>
+      </div>
     </div>
     <div class="fg"><label>Cliente</label><select id="nov-cli"><option>AFILIADO</option><option>FLIT</option></select></div>
-    <div class="fg"><label>Observación</label><textarea id="nov-obs" placeholder="Motivo o detalle..."></textarea></div>
+    <div class="fg"><label>Observación</label><textarea id="nov-obs" placeholder="Motivo o detalle adicional..."></textarea></div>
     <div class="ma">
       <button class="btn" onclick="cm('m-novedad')">Cancelar</button>
       <button class="btn pri" onclick="guardarNovedad()">Guardar</button>
@@ -1557,8 +1590,19 @@ function renderPadron(resetPag){
 // PERMISOS
 // =============================================
 function renderPermisos(){
-  const otros=S.permisos.filter(p=>p.tipo!=='Salud / reposo médico');
-  document.getElementById('perm-cnt').textContent=`${S.permisos.length+S.saludSeg.length} permisos activos`;
+  const tipoFil=document.getElementById('pf-tipo')?.value||'';
+  const flotaFil=document.getElementById('pf-flota')?.value||'';
+  const soloAbiertos=document.getElementById('pf-abiertos')?.checked||false;
+  const filtrarP=p=>{
+    const c=S.conductores.find(x=>x.movil==p.movil);
+    if(tipoFil&&p.tipo!==tipoFil)return false;
+    if(flotaFil&&c?.flota!==flotaFil)return false;
+    if(soloAbiertos&&(p.fecha_fin||p.fin))return false;
+    return true;
+  };
+  const otros=S.permisos.filter(p=>p.tipo!=='Salud / reposo médico'&&filtrarP(p));
+  const totalVis=otros.length+S.saludSeg.filter(s=>!flotaFil||(S.conductores.find(x=>x.movil==s.movil)?.flota===flotaFil)).length;
+  document.getElementById('perm-cnt').textContent=`${totalVis} permisos activos`;
   const se=document.getElementById('salud-sec');
   if(S.saludSeg.length){
     se.innerHTML=`<div class="sec" style="margin-bottom:8px"><i class="ti ti-heart-rate" style="color:var(--da)"></i>Seguimiento de salud (${S.saludSeg.length})</div>`+
@@ -1605,7 +1649,11 @@ function renderPermisos(){
       <td style="font-size:10px">${p.fin||p.fecha_fin||'—'}</td>
       <td style="text-align:center">${p.dias||'—'}</td>
       <td style="font-size:10px;color:var(--g600)">${p.registrado_por||'—'}<div style="font-size:9px;color:var(--g400)">${p.registrado_en?new Date(p.registrado_en).toLocaleDateString('es-PE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—'}</div></td>
-      <td><button class="btn sm ko" onclick="elimPerm('${p.movil}')"><i class="ti ti-trash"></i></button></td>
+      <td style="display:flex;gap:4px">
+        <button class="btn sm" onclick="openPermiso('${p.movil}')" title="Editar"><i class="ti ti-edit"></i></button>
+        <button class="btn sm ko" onclick="elimPerm('${p.movil}')" title="Eliminar"><i class="ti ti-trash"></i></button>
+        ${!(p.fecha_fin||p.fin)?'<button class="btn sm ok" onclick="cerrarPermiso(''+p.movil+'')" title="Cerrar permiso"><i class="ti ti-check"></i></button>':''}
+      </td>
     </tr>`;
   }).join('');
 }
@@ -1615,14 +1663,16 @@ function renderPermisos(){
 // =============================================
 function renderNovedades(){
   const tbody=document.getElementById('nov-tb');
-  if(!S.novedades.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><i class="ti ti-user-plus"></i>Sin novedades esta semana</div></td></tr>`;return;}
+  if(!S.novedades.length){tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><i class="ti ti-user-plus"></i>Sin novedades esta semana</div></td></tr>`;return;}
   tbody.innerHTML=S.novedades.map(n=>`<tr>
     <td><a href="#" onclick="verHist('${n.movil}');return false" style="color:var(--db);font-weight:600;text-decoration:none">${n.movil}</a></td>
     <td><span class="b ${n.tipo==='desactivar'?'ex':'nv'}" style="font-size:8px">${n.tipo.replace(/_/g,' ')}</span></td>
     <td style="font-size:10px">${n.flota||''} <span class="b sb">${n.sub||n.subflota||'—'}</span></td>
     <td style="font-size:10px">${n.flotaAnt||n.flota_anterior||'—'} ${(n.subAnt||n.subflota_anterior)?`<span class="b sb">${n.subAnt||n.subflota_anterior}</span>`:''}</td>
     <td style="font-size:10px;color:var(--g600)">${n.motivo?`[${n.motivo}] `:''}${n.obs||n.observaciones||'—'}</td>
-    <td style="font-size:10px">${n.fecha||n.fecha_registro||'—'}</td>
+    <td style="font-size:10px;color:var(--g600)">${n.fecha_tramite||n.fecha||n.fecha_registro||'—'}</td>
+    <td style="font-size:10px;font-weight:${n.fecha_efecto&&n.fecha_efecto!==(n.fecha_tramite||n.fecha)?'600':'400'};color:${n.fecha_efecto&&n.fecha_efecto!==(n.fecha_tramite||n.fecha)?'var(--db)':'var(--g600)'}">${n.fecha_efecto||n.fecha||'—'}</td>
+    <td style="font-size:10px;color:var(--g600)">${n.registrado_por||'—'}</td>
   </tr>`).join('');
 }
 
@@ -2252,24 +2302,73 @@ function calcD(){
   if(i&&f){const d=dD(i,f);document.getElementById('mp-dias').textContent=`${d} día${d!==1?'s':''} de permiso`;}
 }
 
-function openPermiso(){
+function openPermiso(editMovil){
   const hoy=new Date().toISOString().split('T')[0];
   ['mp-movil','mp-obs'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('mp-info').innerHTML='';
   document.getElementById('mp-ini').value=hoy;
   document.getElementById('mp-fin').value=hoy;
   document.getElementById('mp-dias').textContent='1 día de permiso';
+  document.getElementById('mp-fin-abierto').checked=false;
+  document.getElementById('mp-fin').disabled=false;
+  document.getElementById('av-abierto').style.display='none';
+  document.getElementById('mp-edit-movil').value='';
+  document.getElementById('mp-tit').textContent='Registrar permiso';
+  document.getElementById('mp-btn-txt').textContent='Guardar permiso';
+  document.getElementById('mp-movil').readOnly=false;
   ['av-choque','av-salud','av-mem'].forEach(id=>document.getElementById(id).style.display='none');
+  if(editMovil){
+    const p=S.permisos.find(x=>x.movil==editMovil);
+    if(p){
+      document.getElementById('mp-edit-movil').value=editMovil;
+      document.getElementById('mp-movil').value=editMovil;
+      document.getElementById('mp-movil').readOnly=true;
+      document.getElementById('mp-tipo').value=p.tipo||'';
+      document.getElementById('mp-obs').value=p.observaciones||p.obs||'';
+      document.getElementById('mp-ini').value=p.fecha_inicio||p.inicio||hoy;
+      const finVal=p.fecha_fin||p.fin||'';
+      document.getElementById('mp-fin').value=finVal;
+      if(!finVal){
+        document.getElementById('mp-fin-abierto').checked=true;
+        document.getElementById('mp-fin').disabled=true;
+        document.getElementById('av-abierto').style.display='block';
+      }
+      document.getElementById('mp-tit').textContent='Editar permiso — Móvil '+editMovil;
+      document.getElementById('mp-btn-txt').textContent='Actualizar permiso';
+      onMovilP();onTipoP();calcD();
+    }
+  }
   document.getElementById('m-permiso').style.display='flex';
+}
+
+function toggleFinAbierto(){
+  const abierto=document.getElementById('mp-fin-abierto').checked;
+  document.getElementById('mp-fin').disabled=abierto;
+  document.getElementById('av-abierto').style.display=abierto?'block':'none';
+  if(abierto){document.getElementById('mp-fin').value='';document.getElementById('mp-dias').textContent='Permiso abierto — sin fecha fin definida';}
+  else calcD();
 }
 
 async function guardarPermiso(){
   const movil=document.getElementById('mp-movil').value.trim();if(!movil){alert('Ingresa el móvil');return;}
-  const tipo=document.getElementById('mp-tipo').value,obs=document.getElementById('mp-obs').value;
-  const inicio=document.getElementById('mp-ini').value,fin=document.getElementById('mp-fin').value;
+  const editMovil=document.getElementById('mp-edit-movil').value;
+  const tipo=document.getElementById('mp-tipo').value;
+  const obs=document.getElementById('mp-obs').value;
+  const inicio=document.getElementById('mp-ini').value;
+  const finAbierto=document.getElementById('mp-fin-abierto').checked;
+  const fin=finAbierto?null:(document.getElementById('mp-fin').value||null);
+  if(!inicio){alert('Indica la fecha de inicio');return;}
   const dias=inicio&&fin?dD(inicio,fin):null;
-  const c=S.conductores.find(x=>x.movil==movil);const flota=c?c.flota:'';const total=c?svcs(c):0;
-  if(tipo==='Salud / reposo médico'){
+  const c=S.conductores.find(x=>x.movil==movil);
+  const flota=c?c.flota:'';const total=c?svcs(c):0;
+  if(editMovil){
+    // Editar permiso existente
+    const pExist=S.permisos.find(x=>x.movil==editMovil);
+    if(pExist){
+      const upd={tipo,observaciones:obs,fecha_inicio:inicio,fecha_fin:fin||null,dias:dias||null,registrado_por:currentUser.nombre||'Sistema'};
+      try{await sb.from('permisos').update(upd).eq('movil',editMovil).eq('activo',true);Object.assign(pExist,{...upd,inicio,fin:fin||'',obs});syncMsg('✓ Permiso actualizado');}catch(e){console.error(e);}
+    }
+  } else if(tipo==='Salud / reposo médico'){
     if(!S.saludSeg.find(x=>x.movil==movil)){
       const s={movil,flota,sub:c?.sub||'—',inicio,finEst:fin,obs,semana_inicio:S.semana,notas:[],activo:true};
       S.saludSeg.push(s);
@@ -2283,7 +2382,22 @@ async function guardarPermiso(){
   cm('m-permiso');render();
 }
 
-async function elimPerm(movil){
+async function cerrarPermiso(movil){
+  const hoy=new Date().toISOString().split('T')[0];
+  if(!confirm('¿Confirmar cierre del permiso de móvil '+movil+' con fecha fin hoy ('+hoy+')?'))return;
+  const p=S.permisos.find(x=>x.movil==movil);
+  if(!p)return;
+  const ini=p.fecha_inicio||p.inicio||hoy;
+  const dias=Math.ceil((new Date(hoy)-new Date(ini))/(1000*60*60*24))+1;
+  try{
+    await sb.from('permisos').update({fecha_fin:hoy,dias}).eq('movil',movil).eq('activo',true);
+    p.fecha_fin=hoy;p.fin=hoy;p.dias=dias;
+    syncMsg('✓ Permiso cerrado');
+    renderPermisos();renderPadron();renderAlertas();
+  }catch(e){console.error('cerrarPermiso',e);}
+}
+
+function elimPerm(movil){
   if(!confirm('¿Eliminar permiso?'))return;
   S.permisos=S.permisos.filter(p=>p.movil!=movil);
   try{await sb.from('permisos').update({activo:false}).eq('movil',movil);}catch(e){}
@@ -2375,6 +2489,35 @@ function openNov(tipo){
     membresia_alta:'Alta membresía urbana',membresia_baja:'Baja membresía urbana'};
   document.getElementById('nov-tit').textContent=t[tipo]||tipo;
   updSubsNov();updSubsNovAnt();
+  // Fechas: trámite = hoy, efecto = según tipo
+  const hoy2=new Date().toISOString().split('T')[0];
+  const tramiteEl=document.getElementById('nov-fecha-tramite');
+  const efectoEl=document.getElementById('nov-fecha-efecto');
+  const efectoHint=document.getElementById('nov-fecha-efecto-hint');
+  const efectoLbl=document.getElementById('nov-fecha-efecto-lbl');
+  if(tramiteEl)tramiteEl.value=hoy2;
+  // Calcular próximo lunes
+  const d=new Date();const dow=d.getDay();
+  const diffLunes=dow===0?1:8-dow;
+  const proxLunes=new Date(d);proxLunes.setDate(d.getDate()+diffLunes);
+  const proxLunesStr=proxLunes.toISOString().split('T')[0];
+  const esProxLunes=['cambio_flota','cambio_categoria','membresia_alta','membresia_baja'].includes(tipo);
+  const esAero=tipo==='reactivacion'&&document.getElementById('nov-flota')?.value==='AEROPUERTO';
+  if(efectoEl){
+    if(esProxLunes||esAero){
+      efectoEl.value=proxLunesStr;
+      if(efectoHint)efectoHint.textContent='Próximo lunes — aparece en el siguiente reporte';
+      if(efectoLbl)efectoLbl.textContent='Fecha de efecto (próximo lunes)';
+    } else if(tipo==='nuevo'){
+      efectoEl.value=hoy2;
+      if(efectoHint)efectoHint.textContent='Fecha desde la que opera el conductor';
+      if(efectoLbl)efectoLbl.textContent='Fecha de inicio de operaciones';
+    } else {
+      efectoEl.value=hoy2;
+      if(efectoHint)efectoHint.textContent='Aplica esta semana';
+      if(efectoLbl)efectoLbl.textContent='Fecha de efecto';
+    }
+  }
   document.getElementById('m-novedad').style.display='flex';
 }
 
@@ -2402,7 +2545,9 @@ async function guardarNovedad(){
   const fechaIni=document.getElementById('nov-fecha')?.value;
   const placa=(document.getElementById('nov-placa')?.value||'').toUpperCase();
   const tipoVehiculo=document.getElementById('nov-tipo-vehiculo')?.value||'';
-  const n={movil,tipo,flota,sub,cat,flotaAnt:['cambio_flota','baja_semana'].includes(tipo)?flotaAnt:null,subAnt:tipo==='cambio_flota'?subAnt:null,motivo:tipo==='desactivar'?motivo:null,obs,fecha:new Date().toLocaleDateString('es-PE')};
+  const fechaTramite=document.getElementById('nov-fecha-tramite')?.value||new Date().toISOString().split('T')[0];
+  const fechaEfecto=document.getElementById('nov-fecha-efecto')?.value||fechaTramite;
+  const n={movil,tipo,flota,sub,cat,flotaAnt:['cambio_flota','baja_semana'].includes(tipo)?flotaAnt:null,subAnt:tipo==='cambio_flota'?subAnt:null,motivo:tipo==='desactivar'?motivo:null,obs,fecha:new Date().toLocaleDateString('es-PE'),fecha_tramite:fechaTramite,fecha_efecto:fechaEfecto,semana_numero:S.semana};
   S.novedades.push(n);await saveNov(n);
   const c=S.conductores.find(x=>x.movil==movil);
   // Lógica de cuándo entra en vigor
