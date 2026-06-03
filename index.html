@@ -479,7 +479,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
 <!-- REPORTES -->
 <div id="tab-reportes" class="tab">
   <div style="font-size:13px;font-weight:600;color:var(--g800);margin-bottom:4px">Reportes y exportación</div>
-  <div style="font-size:11px;color:var(--g600);margin-bottom:16px">Descarga el reporte en CSV o importa data histórica.</div>
+  <div style="font-size:11px;color:var(--g600);margin-bottom:16px">Descarga el reporte semanal o consulta el historial completo de cambios.</div>
   <div class="sec"><i class="ti ti-download"></i>Exportar reporte</div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
     <div onclick="expReporte('fin')" style="border:2px solid var(--db);border-radius:var(--rl);padding:16px;text-align:center;cursor:pointer;background:var(--dbl)">
@@ -509,7 +509,29 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
         <input type="text" class="fsel" id="exp-liq" placeholder="Ej: LIQ-2025-22" style="width:170px"></div>
     </div>
   </div>
-  <div class="sec"><i class="ti ti-history"></i>Historial de reportes generados</div>
+
+  <!-- HISTORIAL DE CAMBIOS -->
+  <div class="sec" style="margin-top:4px"><i class="ti ti-history"></i>Historial de cambios por semana</div>
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+    <select class="fsel" id="hc-sem" onchange="renderHistCambios()">
+      <option value="all">Todas las semanas</option>
+    </select>
+    <select class="fsel" id="hc-tipo" onchange="renderHistCambios()">
+      <option value="all">Todos los tipos</option>
+      <option value="novedad">Novedades</option>
+      <option value="permiso">Permisos</option>
+      <option value="seguimiento">Seguimiento operativo</option>
+    </select>
+    <select class="fsel" id="hc-flota" onchange="renderHistCambios()">
+      <option value="all">Todas las flotas</option>
+      <option>AEROPUERTO</option><option>URBANO</option><option>AEROLINEAS</option><option>PLAZAS</option><option>FLIT</option>
+    </select>
+    <button class="btn ok" onclick="expHistCambios()"><i class="ti ti-download"></i> Descargar todo</button>
+  </div>
+  <div id="hc-resumen" style="margin-bottom:10px"></div>
+  <div id="hc-content"></div>
+
+  <div class="sec" style="margin-top:16px"><i class="ti ti-history"></i>Historial de reportes generados</div>
   <div class="tw"><table>
     <thead><tr>
       <th style="width:80px">Semana</th><th style="width:140px">Período</th>
@@ -518,12 +540,6 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
     </tr></thead>
     <tbody id="rep-tb"></tbody>
   </table></div>
-  <div class="sec" style="margin-top:16px"><i class="ti ti-upload"></i>Importar data histórica</div>
-  <div class="uz" onclick="alert('Próximamente: sube un Excel con el formato DATA_FLOTAS para importar conductores o historial.')" style="max-width:420px">
-    <i class="ti ti-file-spreadsheet" style="font-size:26px;display:block;margin-bottom:7px;opacity:.4"></i>
-    <div style="font-size:12px;font-weight:600;margin-bottom:3px">Subir Excel de padrón o historial</div>
-    <div style="font-size:10px;color:var(--g400)">Formato: DATA_FLOTAS con hojas por flota</div>
-  </div>
 </div>
 
 <!-- BUSCADOR -->
@@ -536,7 +552,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <div class="sbox" style="max-width:280px;border-color:var(--db)">
         <i class="ti ti-search" style="color:var(--db)"></i>
-        <input type="text" placeholder="Móvil o placa..." id="bus-input" oninput="buscarConductor()" style="font-size:13px">
+        <input type="text" placeholder="Móvil, placa o subflota..." id="bus-input" oninput="buscarConductor()" onkeyup="buscarConductor()" style="font-size:13px" autocomplete="off">
       </div>
       <select class="fsel" id="bus-flota" onchange="buscarConductor()">
         <option value="">Todas las flotas</option>
@@ -1212,6 +1228,12 @@ function calcEstFinProp(c){
 // =============================================
 function genAlertas(){
   const al=[];
+  // Solo generar alertas si hay servicios cargados esta semana
+  // La data histórica importada no debe generar alertas
+  const hayServicios=S.servicios.wari||S.servicios.kusi||S.servicios.latam||S.servicios.sky;
+  const hayPermisos=S.permisos.length>0;
+  // Si no hay servicios cargados y no hay permisos registrados esta semana, no alertar
+  if(!hayServicios&&!hayPermisos)return al;
   S.conductores.forEach(c=>{
     if(FLIT.includes(c.flota)||PLAZAS.includes(c.flota))return;
     if(['DESACTIVADO','EXPULSADO'].includes(c.estFin))return;
@@ -1235,17 +1257,17 @@ function genAlertas(){
     // Choque + 0 servicios
     if(p&&p.tipo==='Choque / accidente'&&total===0&&!S.alertasDec[`chq_${c.movil}`])
       al.push({id:`chq_${c.movil}`,tipo:'choque',nivel:'bloq',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:'Choque registrado con 0 servicios — define estado financiero'});
-    // Membresía congelada sin permiso
-    if(c.esMem&&c.estFin==='CONGELADO'&&!p&&!ss&&!c.bajaSem&&!S.alertasDec[`mem_${c.movil}`])
+    // Membresía congelada sin permiso — solo con servicios cargados
+    if(hayServicios&&c.esMem&&c.estFin==='CONGELADO'&&!p&&!ss&&!c.bajaSem&&!S.alertasDec[`mem_${c.movil}`])
       al.push({id:`mem_${c.movil}`,tipo:'mem_sin_perm',nivel:'bloq',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:'Congelado sin permiso — membresía activa, riesgo de cobro incorrecto'});
-    // Membresía 0 servicios sin permiso
-    if(c.esMem&&total===0&&!p&&!ss&&!c.bajaSem&&!S.alertasDec[`m0_${c.movil}`])
+    // Membresía 0 servicios sin permiso — solo si hay servicios cargados
+    if(hayServicios&&c.esMem&&total===0&&!p&&!ss&&!c.bajaSem&&!S.alertasDec[`m0_${c.movil}`])
       al.push({id:`m0_${c.movil}`,tipo:'mem_0svc',nivel:'bloq',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:'0 servicios sin justificación — membresía activa'});
     // Salud 0 servicios
     if(ss&&total===0&&c.esMem&&!S.alertasDec[`sal_${c.movil}`])
       al.push({id:`sal_${c.movil}`,tipo:'salud_0',nivel:'bloq',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:`Permiso salud activo + 0 servicios esta semana — validar`});
-    // 2+ semanas congelado
-    if(c.sc>=2&&c.estFin==='CONGELADO'&&!ss&&AUTO_DESACT.includes(c.flota)&&!S.alertasDec[`2s_${c.movil}`])
+    // 2+ semanas congelado — solo si hay servicios cargados (semana real en curso)
+    if(hayServicios&&c.sc>=2&&c.estFin==='CONGELADO'&&!ss&&AUTO_DESACT.includes(c.flota)&&!S.alertasDec[`2s_${c.movil}`])
       al.push({id:`2s_${c.movil}`,tipo:'2sem',nivel:'bloq',movil:c.movil,flota:c.flota,sub:c.sub,cat:c.cat,msg:`${c.sc} semanas congelado — confirma DESACTIVADO o justifica continuidad`});
   });
   return al;
@@ -1824,7 +1846,7 @@ function initSelects(){
 function buscarConductor(){
   const q=document.getElementById('bus-input').value.trim();
   const el=document.getElementById('bus-res');const hint=document.getElementById('bus-hint');
-  if(q.length<2){el.innerHTML='';hint.textContent='Ingresa al menos 2 caracteres';return;}
+  if(q.length<1){el.innerHTML='';hint.textContent='';return;}
   const matches=S.conductores.filter(c=>
     c.movil.includes(q)||
     (c.placa||'').toLowerCase().includes(q)||
@@ -2874,12 +2896,186 @@ function initSegSemanas(){
   sems.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent='Sem '+s;el.appendChild(o);});
 }
 
+// =============================================
+// HISTORIAL DE CAMBIOS
+// =============================================
+function initHistCambios(){
+  const el=document.getElementById('hc-sem');if(!el)return;
+  while(el.options.length>1)el.remove(1);
+  const sems=[...new Set([
+    ...S.novedades.map(n=>n.semana_numero),
+    ...S.permisos.map(p=>p.semana_numero),
+    ...S.seguimientoOp.map(s=>s.semana_numero)
+  ])].filter(Boolean).sort((a,b)=>b-a);
+  sems.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent='Semana '+s;el.appendChild(o);});
+}
+
+function renderHistCambios(){
+  const semFil=document.getElementById('hc-sem')?.value||'all';
+  const tipoFil=document.getElementById('hc-tipo')?.value||'all';
+  const flotaFil=document.getElementById('hc-flota')?.value||'all';
+  const el=document.getElementById('hc-content');
+  const res=document.getElementById('hc-resumen');
+  if(!el)return;
+
+  // Filtrar novedades
+  let novs=S.novedades.filter(n=>{
+    if(semFil!=='all'&&n.semana_numero!=semFil)return false;
+    if(flotaFil!=='all'&&n.flota!==flotaFil)return false;
+    return true;
+  });
+
+  // Filtrar permisos
+  let perms=S.permisos.filter(p=>{
+    if(semFil!=='all'&&p.semana_numero!=semFil)return false;
+    const c=S.conductores.find(x=>x.movil==p.movil);
+    if(flotaFil!=='all'&&c?.flota!==flotaFil)return false;
+    return true;
+  });
+
+  // Filtrar seguimiento
+  let segs=S.seguimientoOp.filter(s=>{
+    if(semFil!=='all'&&s.semana_numero!=semFil)return false;
+    if(flotaFil!=='all'&&s.flota!==flotaFil)return false;
+    return true;
+  });
+
+  // Resumen
+  if(res){
+    res.innerHTML=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+      <span class="chip"><i class="ti ti-arrows-exchange"></i> ${novs.length} novedades</span>
+      <span class="chip"><i class="ti ti-calendar-off"></i> ${perms.length} permisos</span>
+      <span class="chip"><i class="ti ti-phone-call"></i> ${segs.length} seguimientos</span>
+    </div>`;
+  }
+
+  let html='';
+
+  // NOVEDADES
+  if((tipoFil==='all'||tipoFil==='novedad')&&novs.length){
+    const TIPOS_NOV={nuevo:'Nuevo ingreso',reactivacion:'Reactivación',cambio_flota:'Cambio de flota',
+      baja_semana:'Baja mitad semana',desactivar:'Desactivación',cambio_categoria:'Cambio categoría',
+      membresia_alta:'Alta membresía',membresia_baja:'Baja membresía'};
+    html+=`<div class="panel" style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <h4 style="margin:0"><i class="ti ti-arrows-exchange" style="margin-right:5px;color:var(--db)"></i>Novedades registradas</h4>
+        <span class="chip">${novs.length} cambios</span>
+      </div>
+      <div class="tw" style="margin-bottom:0"><table>
+        <thead><tr>
+          <th style="width:65px">Móvil</th><th style="width:55px">Sem.</th>
+          <th style="width:130px">Tipo</th><th style="width:100px">Flota</th>
+          <th style="width:95px">Subflota</th><th style="width:110px">Registrado por</th>
+          <th style="width:110px">Fecha</th><th>Obs.</th>
+        </tr></thead>
+        <tbody>${novs.sort((a,b)=>(b.semana_numero||0)-(a.semana_numero||0)).map(n=>`<tr>
+          <td style="font-weight:600;color:var(--db)">${n.movil}</td>
+          <td style="font-size:10px;color:var(--g600)">Sem ${n.semana_numero||'—'}</td>
+          <td><span class="b sb" style="font-size:8px">${TIPOS_NOV[n.tipo]||n.tipo||'—'}</span></td>
+          <td style="font-size:10px">${n.flota||'—'}</td>
+          <td style="font-size:10px">${n.sub||n.subflota||'—'}</td>
+          <td style="font-size:10px;color:var(--g600)">${n.registrado_por||'—'}</td>
+          <td style="font-size:10px;color:var(--g600)">${n.registrado_en?new Date(n.registrado_en).toLocaleDateString('es-PE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):n.fecha||'—'}</td>
+          <td style="font-size:10px;color:var(--g600)">${n.obs||n.observaciones||'—'}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>`;
+  }
+
+  // PERMISOS
+  if((tipoFil==='all'||tipoFil==='permiso')&&perms.length){
+    html+=`<div class="panel" style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <h4 style="margin:0"><i class="ti ti-calendar-off" style="margin-right:5px;color:var(--da)"></i>Permisos registrados</h4>
+        <span class="chip">${perms.length} permisos</span>
+      </div>
+      <div class="tw" style="margin-bottom:0"><table>
+        <thead><tr>
+          <th style="width:65px">Móvil</th><th style="width:55px">Sem.</th>
+          <th style="width:140px">Tipo</th><th style="width:75px">Inicio</th>
+          <th style="width:75px">Fin</th><th style="width:45px">Días</th>
+          <th style="width:110px">Registrado por</th><th>Obs.</th>
+        </tr></thead>
+        <tbody>${perms.sort((a,b)=>(b.semana_numero||0)-(a.semana_numero||0)).map(p=>`<tr>
+          <td style="font-weight:600;color:var(--db)">${p.movil}</td>
+          <td style="font-size:10px;color:var(--g600)">Sem ${p.semana_numero||'—'}</td>
+          <td><span class="b co" style="font-size:8px">${p.tipo||'—'}</span></td>
+          <td style="font-size:10px">${p.fecha_inicio||p.inicio||'—'}</td>
+          <td style="font-size:10px">${p.fecha_fin||p.fin||'—'}</td>
+          <td style="text-align:center;font-size:10px">${p.dias||'—'}</td>
+          <td style="font-size:10px;color:var(--g600)">${p.registrado_por||'—'}<div style="font-size:9px;color:var(--g400)">${p.registrado_en?new Date(p.registrado_en).toLocaleDateString('es-PE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''}</div></td>
+          <td style="font-size:10px;color:var(--g600)">${p.observaciones||p.obs||'—'}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>`;
+  }
+
+  // SEGUIMIENTO
+  if((tipoFil==='all'||tipoFil==='seguimiento')&&segs.length){
+    html+=`<div class="panel" style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <h4 style="margin:0"><i class="ti ti-phone-call" style="margin-right:5px;color:var(--dg)"></i>Seguimiento operativo</h4>
+        <span class="chip">${segs.length} registros</span>
+      </div>
+      <div class="tw" style="margin-bottom:0"><table>
+        <thead><tr>
+          <th style="width:65px">Móvil</th><th style="width:55px">Sem.</th>
+          <th style="width:100px">Flota</th><th style="width:150px">Motivo</th>
+          <th style="width:80px">Contactado</th><th style="width:110px">Registrado por</th><th>Nota</th>
+        </tr></thead>
+        <tbody>${segs.sort((a,b)=>(b.semana_numero||0)-(a.semana_numero||0)).map(s=>`<tr>
+          <td style="font-weight:600;color:var(--db)">${s.movil}</td>
+          <td style="font-size:10px;color:var(--g600)">Sem ${s.semana_numero||'—'}</td>
+          <td style="font-size:10px">${s.flota||'—'} <span class="b sb" style="font-size:7px">${s.subflota||''}</span></td>
+          <td><span class="b ${getTipoMotivo(s.motivo)==='plataforma'?'de':'co'}" style="font-size:8px">${s.motivo||'—'}</span></td>
+          <td style="text-align:center">${s.contactado?'<span class="b ac" style="font-size:8px">Sí</span>':'<span class="b de" style="font-size:8px">No</span>'}</td>
+          <td style="font-size:10px;color:var(--g600)">${s.registrado_por||'—'}<div style="font-size:9px;color:var(--g400)">${s.registrado_en?new Date(s.registrado_en).toLocaleDateString('es-PE',{day:'2-digit',month:'short'}):''}</div></td>
+          <td style="font-size:10px;color:var(--g600)">${s.nota||'—'}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>`;
+  }
+
+  if(!html)html=`<div class="empty" style="padding:20px"><i class="ti ti-history"></i>Sin cambios registrados para los filtros seleccionados</div>`;
+  el.innerHTML=html;
+}
+
+function expHistCambios(){
+  const semFil=document.getElementById('hc-sem')?.value||'all';
+  const BOM='\uFEFF';
+  let csv=BOM+'Tipo,Semana,Móvil,Flota,Subflota,Detalle,Registrado por,Fecha,Observaciones\n';
+
+  // Novedades
+  S.novedades.filter(n=>semFil==='all'||n.semana_numero==semFil).forEach(n=>{
+    csv+=`"Novedad","${n.semana_numero||''}","${n.movil}","${n.flota||''}","${n.sub||n.subflota||''}","${n.tipo||''}","${n.registrado_por||''}","${n.registrado_en?new Date(n.registrado_en).toLocaleDateString('es-PE'):n.fecha||''}","${(n.obs||n.observaciones||'').replace(/"/g,"'")}"\n`;
+  });
+
+  // Permisos
+  S.permisos.filter(p=>semFil==='all'||p.semana_numero==semFil).forEach(p=>{
+    const c=S.conductores.find(x=>x.movil==p.movil);
+    csv+=`"Permiso","${p.semana_numero||''}","${p.movil}","${c?.flota||''}","${c?.sub||''}","${p.tipo||''} (${p.dias||0} días)","${p.registrado_por||''}","${p.registrado_en?new Date(p.registrado_en).toLocaleDateString('es-PE'):''}","${(p.observaciones||p.obs||'').replace(/"/g,"'")}"\n`;
+  });
+
+  // Seguimiento
+  S.seguimientoOp.filter(s=>semFil==='all'||s.semana_numero==semFil).forEach(s=>{
+    csv+=`"Seguimiento","${s.semana_numero||''}","${s.movil}","${s.flota||''}","${s.subflota||''}","${s.motivo||''} (${s.contactado?'Contactado':'No contactado'})","${s.registrado_por||''}","${s.registrado_en?new Date(s.registrado_en).toLocaleDateString('es-PE'):''}","${(s.nota||'').replace(/"/g,"'")}"\n`;
+  });
+
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`Historial_Cambios${semFil!=='all'?'_Sem'+semFil:''}_Directo.csv`;
+  a.click();URL.revokeObjectURL(url);
+}
+
 function goTab(tab){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
   const btn=document.querySelector(`[data-tab="${tab}"]`);if(btn)btn.classList.add('active');
   if(tab==='seguimiento')renderSeguimiento();
+  if(tab==='reportes'){initHistCambios();renderHistCambios();}
 }
 
 setInterval(updateBanner,60000);
