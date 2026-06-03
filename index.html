@@ -1652,7 +1652,7 @@ function renderPermisos(){
       <td style="display:flex;gap:4px">
         <button class="btn sm" onclick="openPermiso('${p.movil}')" title="Editar"><i class="ti ti-edit"></i></button>
         <button class="btn sm ko" onclick="elimPerm('${p.movil}')" title="Eliminar"><i class="ti ti-trash"></i></button>
-        ${!(p.fecha_fin||p.fin)?'<button class="btn sm ok" onclick="cerrarPermiso(''+p.movil+'')" title="Cerrar permiso"><i class="ti ti-check"></i></button>':''}
+        ${!(p.fecha_fin||p.fin)?'<button class="btn sm ok" onclick="cerrarPermiso(\''+p.movil+'\')" title="Cerrar permiso"><i class="ti ti-check"></i></button>':''}
       </td>
     </tr>`;
   }).join('');
