@@ -564,15 +564,20 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
         <option>Membresía Diurna</option><option>Membresía Nocturna</option>
         <option>Aeropuerto Regular</option><option>Aeropuerto Van</option>
         <option>Urbano Regular</option><option>Urbano Partner</option><option>Membresía Urbano</option>
-        <option>Latam</option><option>Sky</option>
+        <option>Latam</option><option>Sky</option><option>Jetsmart</option>
+        <option>Bellavista</option><option>Jockey Plaza</option>
       </select>
       <select class="fsel" id="bus-estado" onchange="buscarConductor()">
         <option value="">Todos los estados</option>
         <option>ACTIVO</option><option>CONGELADO</option><option>DESACTIVADO</option><option>EXPULSADO</option>
       </select>
-      <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--g600);cursor:pointer">
-        <input type="checkbox" id="bus-mem" onchange="buscarConductor()"> Solo membresía urbana
-      </label>
+      <select class="fsel" id="bus-mem-tipo" onchange="buscarConductor()">
+        <option value="">Todas las membresías</option>
+        <option value="mem_urbano">Solo Membresía Urbano</option>
+        <option value="mem_diurna">Solo Membresía Diurna</option>
+        <option value="mem_nocturna">Solo Membresía Nocturna</option>
+        <option value="todas_mem">Todas las membresías</option>
+      </select>
       <span style="font-size:11px;color:var(--g600)" id="bus-hint"></span>
     </div>
   </div>
@@ -642,18 +647,18 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
     <div class="panel" style="margin-bottom:0">
       <h4>Composición por flota</h4>
-      <canvas id="chart-dona-flota" height="200"></canvas>
+      <canvas id="chart-dona-flota" height="160"></canvas>
     </div>
     <div class="panel" style="margin-bottom:0">
       <h4>Composición por estado</h4>
-      <canvas id="chart-dona-estado" height="200"></canvas>
+      <canvas id="chart-dona-estado" height="160"></canvas>
     </div>
   </div>
 
   <!-- BLOQUE 2: Evolución semanal -->
   <div class="panel" style="margin-bottom:16px">
     <h4>Evolución semanal — activos / congelados / desactivados</h4>
-    <canvas id="chart-barras-sem" height="160"></canvas>
+    <canvas id="chart-barras-sem" height="130"></canvas>
   </div>
 
   <!-- BLOQUE 3: Seguimiento operativo -->
@@ -662,11 +667,11 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div>
         <div style="font-size:10px;color:var(--g600);margin-bottom:6px">🧑 Motivos del conductor</div>
-        <canvas id="chart-motivos-cond" height="180"></canvas>
+        <canvas id="chart-motivos-cond" height="110"></canvas>
       </div>
       <div>
         <div style="font-size:10px;color:var(--g600);margin-bottom:6px">⚠️ Motivos de plataforma</div>
-        <canvas id="chart-motivos-plat" height="180"></canvas>
+        <canvas id="chart-motivos-plat" height="110"></canvas>
       </div>
     </div>
   </div>
@@ -674,13 +679,13 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
   <!-- BLOQUE 4: Permisos -->
   <div class="panel" style="margin-bottom:16px">
     <h4>Tipos de permiso por semana</h4>
-    <canvas id="chart-permisos" height="140"></canvas>
+    <canvas id="chart-permisos" height="110"></canvas>
   </div>
 
   <!-- BLOQUE 5: Movimientos -->
   <div class="panel" style="margin-bottom:16px">
     <h4>Movimientos semana a semana</h4>
-    <canvas id="chart-movimientos" height="140"></canvas>
+    <canvas id="chart-movimientos" height="110"></canvas>
   </div>
 
   <!-- Tabla detalle -->
@@ -1905,12 +1910,15 @@ function buscarConductor(){
   const busFlota=document.getElementById('bus-flota')?.value||'';
   const busSub=document.getElementById('bus-sub')?.value||'';
   const busEst=document.getElementById('bus-estado')?.value||'';
-  const busMem=document.getElementById('bus-mem')?.checked||false;
+  const busMemTipo=document.getElementById('bus-mem-tipo')?.value||'';
   let filtered=matches;
   if(busFlota)filtered=filtered.filter(c=>c.flota===busFlota);
   if(busSub)filtered=filtered.filter(c=>c.sub===busSub);
   if(busEst)filtered=filtered.filter(c=>c.estFin===busEst);
-  if(busMem)filtered=filtered.filter(c=>c.esMem);
+  if(busMemTipo==='mem_urbano')filtered=filtered.filter(c=>c.sub==='Membresía Urbano');
+  else if(busMemTipo==='mem_diurna')filtered=filtered.filter(c=>c.sub==='Membresía Diurna');
+  else if(busMemTipo==='mem_nocturna')filtered=filtered.filter(c=>c.sub==='Membresía Nocturna');
+  else if(busMemTipo==='todas_mem')filtered=filtered.filter(c=>c.esMem);
   hint.textContent=filtered.length?`${filtered.length} encontrado${filtered.length>1?'s':''}`:' ';
   if(!filtered.length){el.innerHTML=`<div class="empty"><i class="ti ti-search"></i>Sin resultados para "${q}"</div>`;return;}
   const matches_limit=filtered.slice(0,20); // mostrar máximo 20
