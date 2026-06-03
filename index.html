@@ -1169,13 +1169,19 @@ function initDemo(){
 function svcs(c){return(c.wari||0)+(c.kusi||0)+(c.sky||0)+(c.latam||0);}
 function getLunes(d){const dt=new Date(d);const day=dt.getDay();const diff=dt.getDate()-day+(day===0?-6:1);return new Date(dt.setDate(diff));}
 function fmtF(d){try{return new Date(d+'T12:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'short'});}catch(e){return d||'—';}}
-function getPeriodo(ls){const l=new Date(ls+'T12:00:00');const v=new Date(l);v.setDate(l.getDate()+6);return`${fmtF(ls)} — ${fmtF(v.toISOString().split('T')[0])}`;}
+function getPeriodo(ls){
+  // ls es la fecha de inicio configurada (lunes)
+  const l=new Date(ls+'T12:00:00');
+  // Asegurar que es lunes: ajustar si no lo es
+  const dow=l.getDay(); // 0=dom, 1=lun...
+  if(dow!==1){const diff=dow===0?-6:1-dow;l.setDate(l.getDate()+diff);}
+  const v=new Date(l);v.setDate(l.getDate()+6); // domingo
+  return fmtF(l.toISOString().split('T')[0])+' — '+fmtF(v.toISOString().split('T')[0]);
+}
 function dD(i,f){return Math.max(1,Math.round((new Date(f)-new Date(i))/86400000)+1);}
 function getFlota(m){const c=S.conductores.find(x=>x.movil==m);return c?c.flota:'';}
 function getSub(m){const c=S.conductores.find(x=>x.movil==m);return c?c.sub:'';}
 function getCat(m){const c=S.conductores.find(x=>x.movil==m);return c?c.cat:'';}
-function getTarifa(cat){if(!cat)return'';const mem=TARIFAS[cat]||0;const p=cat==='Van'?22:27.9;return`S/${mem} + ${p}%`;}
-
 function calcEstOp(c){
   if(FLIT.includes(c.flota))return svcs(c)>0?'ACTIVO':'CONGELADO';
   if(PLAZAS.includes(c.flota))return['DESACTIVADO','EXPULSADO'].includes(c.estFin)?c.estFin:'ACTIVO';
@@ -1855,7 +1861,7 @@ function buscarConductor(){
       var efClass=(h.estado_fin||'congelado').toLowerCase();
       var eoClass=(h.estado_op||'congelado').toLowerCase();
       var catH=h.categoria_vehiculo?'<span class="b ca" style="font-size:8px">'+h.categoria_vehiculo+'</span>':'';
-      var permH=h.permiso_tipo?'<span class="b co" style="font-size:8px">'+(h.permiso_tipo.split('/')[0]||'').trim()+'</span>':'—';
+      var permH=h.permiso_tipo?'<span class="b co" style="font-size:8px">'+String(h.permiso_tipo).split('/')[0].trim()+'</span>':'—';
       return '<div style="display:flex;align-items:center;gap:7px;padding:6px 13px;border-bottom:1px solid var(--g100);font-size:11px">'+
         '<span style="width:55px;font-size:10px;font-weight:600;color:var(--db);flex-shrink:0">Sem '+(h.numero_semana||'—')+'</span>'+
         '<span style="width:55px;flex-shrink:0"><span class="b sb" style="font-size:8px">'+(h.subflota||'—')+'</span></span>'+
@@ -2357,7 +2363,7 @@ async function guardarNovedad(){
   } else if(tipo==='cambio_categoria'&&c){
     // Entra próximo lunes — guardar categoría anterior
     c.catAnt=c.cat;
-    c.obs=`Cambio categoría: ${c.cat} → ${cat} · Nueva tarifa: S/${TARIFAS[cat]||'—'} — efectivo próximo lunes`;
+    c.obs='Cambio categoría: '+c.cat+' → '+cat+' · Nueva tarifa: '+getTarifa(c.sub,cat)+' — efectivo próximo lunes';
     c.cat=cat; // se aplica en próximo cierre
     if(placa)c.placa=placa;if(tipoVehiculo)c.tipoVehiculo=tipoVehiculo;
     await saveC(c);
