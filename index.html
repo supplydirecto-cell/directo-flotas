@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -635,6 +636,54 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
       </select>
     </div>
   </div>
+
+  <!-- BLOQUE 1: Cards + Donas -->
+  <div id="ind-cards" style="margin-bottom:16px"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+    <div class="panel" style="margin-bottom:0">
+      <h4>Composición por flota</h4>
+      <canvas id="chart-dona-flota" height="200"></canvas>
+    </div>
+    <div class="panel" style="margin-bottom:0">
+      <h4>Composición por estado</h4>
+      <canvas id="chart-dona-estado" height="200"></canvas>
+    </div>
+  </div>
+
+  <!-- BLOQUE 2: Evolución semanal -->
+  <div class="panel" style="margin-bottom:16px">
+    <h4>Evolución semanal — activos / congelados / desactivados</h4>
+    <canvas id="chart-barras-sem" height="160"></canvas>
+  </div>
+
+  <!-- BLOQUE 3: Seguimiento operativo -->
+  <div class="panel" style="margin-bottom:16px">
+    <h4>Motivos de seguimiento operativo por semana</h4>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <div style="font-size:10px;color:var(--g600);margin-bottom:6px">🧑 Motivos del conductor</div>
+        <canvas id="chart-motivos-cond" height="180"></canvas>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--g600);margin-bottom:6px">⚠️ Motivos de plataforma</div>
+        <canvas id="chart-motivos-plat" height="180"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- BLOQUE 4: Permisos -->
+  <div class="panel" style="margin-bottom:16px">
+    <h4>Tipos de permiso por semana</h4>
+    <canvas id="chart-permisos" height="140"></canvas>
+  </div>
+
+  <!-- BLOQUE 5: Movimientos -->
+  <div class="panel" style="margin-bottom:16px">
+    <h4>Movimientos semana a semana</h4>
+    <canvas id="chart-movimientos" height="140"></canvas>
+  </div>
+
+  <!-- Tabla detalle -->
   <div id="ind-cont"></div>
 </div>
 
@@ -1960,20 +2009,36 @@ function renderInd(){
   const tipo=document.getElementById('ind-tipo').value;
   const getEst=h=>tipo==='fin'?(h.estado_fin||h.estFin):(h.estado_op||h.estOp);
   const filtrar=c=>(flotaF==='all'||c.flota===flotaF)&&(subF==='all'||c.subflota===subF||c.sub===subF);
-  // Cards semana actual — usar getEstOp para operativo
-  const actCur=S.conductores.filter(c=>filtrar(c)&&(tipo==='fin'?c.estFin==='ACTIVO':getEstOp(c)==='ACTIVO')).length;
-  const conCur=S.conductores.filter(c=>filtrar(c)&&(tipo==='fin'?c.estFin==='CONGELADO':getEstOp(c)==='CONGELADO')).length;
-  const desCur=S.conductores.filter(c=>filtrar(c)&&['DESACTIVADO','EXPULSADO'].includes(tipo==='fin'?c.estFin:getEstOp(c))).length;
+
+  // Conductores filtrados
+  const conds=S.conductores.filter(filtrar);
+  const actCur=conds.filter(c=>tipo==='fin'?c.estFin==='ACTIVO':getEstOp(c)==='ACTIVO').length;
+  const conCur=conds.filter(c=>tipo==='fin'?c.estFin==='CONGELADO':getEstOp(c)==='CONGELADO').length;
+  const desCur=conds.filter(c=>['DESACTIVADO','EXPULSADO'].includes(tipo==='fin'?c.estFin:getEstOp(c))).length;
+
+  // Cards
+  const cardsEl=document.getElementById('ind-cards');
+  if(cardsEl)cardsEl.innerHTML=`<div class="cg c3" style="margin-bottom:0">
+    <div class="mc g"><div class="ml">Activos (${tipo==='fin'?'Fin':'Op'})</div><div class="mv">${actCur}</div><div style="font-size:10px;opacity:.65;margin-top:2px">Semana actual · ${conds.length} total</div></div>
+    <div class="mc a"><div class="ml">Congelados</div><div class="mv">${conCur}</div></div>
+    <div class="mc r"><div class="ml">Desact / Expulsados</div><div class="mv">${desCur}</div></div>
+  </div>`;
+
+  // Gráficos — ejecutar después de que el DOM esté listo
+  setTimeout(()=>{
+    mkDonaFlota(S.conductores,flotaF);
+    mkDonaEstado(conds,tipo);
+    mkBarrasSem(S.historial,tipo,flotaF);
+    mkMotivos(S.seguimientoOp,flotaF);
+    mkPermisos(S.permisos,flotaF);
+    mkMovimientos(S.novedades,flotaF);
+  },50);
+
+  // Tabla historial
   let sems=S.historial;
   if(semF!=='all')sems=sems.filter(h=>h.numero_semana==semF);
   const memU=S.conductores.filter(c=>c.esMem&&c.flota==='URBANO'&&(flotaF==='all'||flotaF==='URBANO'));
-  const permTipos={};sems.filter(h=>h.permiso_tipo&&filtrar(h)).forEach(h=>{permTipos[h.permiso_tipo]=(permTipos[h.permiso_tipo]||0)+1;});
-  const catData={};S.conductores.filter(c=>c.flota==='AEROPUERTO'&&c.cat&&c.sub&&(flotaF==='all'||flotaF==='AEROPUERTO')).forEach(c=>{
-    const key=c.sub+'|'+c.cat;
-    catData[key]=(catData[key]||0)+1;
-  });
   const numsems=[...new Set(sems.map(h=>h.numero_semana))].sort((a,b)=>b-a).slice(0,10);
-  // Flotas correctas
   const FLOTAS_LIST=['AEROPUERTO','URBANO','AEROLINEAS','PLAZAS','FLIT'];
   const filas=numsems.flatMap(numSem=>{
     const flotasRender=flotaF==='all'?FLOTAS_LIST:[flotaF];
@@ -1987,34 +2052,16 @@ function renderInd(){
     });
   }).filter(Boolean).join('');
 
-  // Categorías Aeropuerto con tarifa correcta
-  const catHtml=Object.keys(catData).length?'<div class="panel" style="margin-bottom:12px"><h4>Categorías — Aeropuerto</h4><div class="bc">'+
-    Object.entries(catData).sort((a,b)=>b[1]-a[1]).map(function([key,n]){
-      const parts=key.split('|');const sub=parts[0];const cat=parts[1];
-      const tar=getTarifa(sub,cat);
-      return '<div class="br"><span class="bl">'+cat+' · '+sub+(tar?' · '+tar:'')+'</span><div class="bt"><div class="bf" style="width:'+Math.round(n/Math.max(...Object.values(catData))*100)+'%;background:var(--db)88"></div></div><span class="bv">'+n+'</span></div>';
-    }).join('')+'</div></div>':'';
-
-  const permHtml=Object.keys(permTipos).length?'<div class="panel" style="margin-bottom:12px"><h4>Permisos históricos por tipo</h4><div class="bc">'+
-    Object.entries(permTipos).sort((a,b)=>b[1]-a[1]).map(function([t,n]){
-      return '<div class="br"><span class="bl">'+(t.split('/')[0]||t).trim()+'</span><div class="bt"><div class="bf" style="width:'+Math.round(n/Math.max(...Object.values(permTipos))*100)+'%;background:var(--da)88"></div></div><span class="bv">'+n+'</span></div>';
-    }).join('')+'</div></div>':'';
-
-  const memHtml=memU.length?'<div class="ibox pu" style="margin-bottom:12px"><i class="ti ti-users" style="margin-right:5px"></i><strong>'+memU.length+' conductores con membresía urbana:</strong> '+memU.map(c=>'<span class="b sb" style="margin-left:4px">'+c.movil+'</span>').join('')+'</div>':'';
+  const memHtml=memU.length?'<div class="ibox pu" style="margin-bottom:12px"><i class="ti ti-users" style="margin-right:5px"></i><strong>'+memU.length+' con membresía urbana:</strong> '+memU.map(c=>'<span class="b sb" style="margin-left:4px">'+c.movil+'</span>').join('')+'</div>':'';
 
   document.getElementById('ind-cont').innerHTML=
-    '<div class="cg c3" style="margin-bottom:12px">'+
-      '<div class="mc g"><div class="ml">Activos ('+(tipo==='fin'?'fin':'op')+')</div><div class="mv">'+actCur+'</div><div style="font-size:10px;opacity:.65;margin-top:2px">Semana actual</div></div>'+
-      '<div class="mc a"><div class="ml">Congelados</div><div class="mv">'+conCur+'</div></div>'+
-      '<div class="mc r"><div class="ml">Desact / Expulsados</div><div class="mv">'+desCur+'</div></div>'+
-    '</div>'+
-    memHtml+catHtml+permHtml+
-    '<div class="sec"><i class="ti ti-activity"></i>Evolución semanal por flota</div>'+
+    memHtml+
+    '<div class="sec" style="margin-top:4px"><i class="ti ti-activity"></i>Detalle semanal por flota</div>'+
     '<div class="tw"><table>'+
       '<thead><tr><th style="width:70px">Semana</th><th style="width:120px">Flota</th>'+
       '<th style="width:90px">Subflota</th><th style="width:80px">Activos</th>'+
       '<th style="width:85px">Congelados</th><th>Desact/Exp</th></tr></thead>'+
-      '<tbody>'+(filas||'<tr><td colspan="6"><div class="empty" style="padding:14px">Sin historial</div></td></tr>')+'</tbody>'+
+      '<tbody>'+(filas||'<tr><td colspan="6"><div class="empty" style="padding:14px">Sin historial — se genera al cerrar cada semana</div></td></tr>')+'</tbody>'+
     '</table></div>';
 }
 
@@ -3087,6 +3134,134 @@ function expHistCambios(){
   a.click();URL.revokeObjectURL(url);
 }
 
+// =============================================
+// GRÁFICOS — INDICADORES
+// =============================================
+const CHART_COLORS={
+  ACTIVO:'#22C55E',CONGELADO:'#F59E0B',DESACTIVADO:'#EF4444',EXPULSADO:'#7F1D1D',
+  AEROPUERTO:'#0057FF',URBANO:'#534AB7',AEROLINEAS:'#BA7517',PLAZAS:'#1D9E75',FLIT:'#6B7280',
+  conductor:'#3B82F6',plataforma:'#EF4444'
+};
+const chartInst={};
+
+function destroyChart(id){if(chartInst[id]){chartInst[id].destroy();delete chartInst[id];}}
+
+function mkDonaFlota(conds,filtro){
+  destroyChart('dona-flota');
+  const flotas=['AEROPUERTO','URBANO','AEROLINEAS','PLAZAS','FLIT'];
+  const data=flotas.map(f=>conds.filter(c=>c.flota===f).length);
+  const ctx=document.getElementById('chart-dona-flota');if(!ctx)return;
+  chartInst['dona-flota']=new Chart(ctx,{
+    type:'doughnut',
+    data:{labels:flotas,datasets:[{data,backgroundColor:flotas.map(f=>CHART_COLORS[f]||'#ccc'),borderWidth:2,borderColor:'#fff'}]},
+    options:{plugins:{legend:{position:'right',labels:{font:{size:10},padding:8}}},cutout:'65%',maintainAspectRatio:true}
+  });
+}
+
+function mkDonaEstado(conds,tipo){
+  destroyChart('dona-estado');
+  const estados=tipo==='fin'?['ACTIVO','CONGELADO','DESACTIVADO','EXPULSADO']:['ACTIVO','CONGELADO','DESACTIVADO','EXPULSADO'];
+  const getFn=tipo==='fin'?(c=>c.estFin):(c=>getEstOp(c));
+  const data=estados.map(e=>conds.filter(c=>getFn(c)===e).length);
+  const ctx=document.getElementById('chart-dona-estado');if(!ctx)return;
+  chartInst['dona-estado']=new Chart(ctx,{
+    type:'doughnut',
+    data:{labels:estados,datasets:[{data,backgroundColor:estados.map(e=>CHART_COLORS[e]||'#ccc'),borderWidth:2,borderColor:'#fff'}]},
+    options:{plugins:{legend:{position:'right',labels:{font:{size:10},padding:8}}},cutout:'65%',maintainAspectRatio:true}
+  });
+}
+
+function mkBarrasSem(historial,tipo,flotaF){
+  destroyChart('barras-sem');
+  const sems=[...new Set(historial.map(h=>h.numero_semana))].sort((a,b)=>a-b).slice(-10);
+  if(!sems.length)return;
+  const getFn=h=>tipo==='fin'?(h.estado_fin||h.estFin):(h.estado_op||h.estOp);
+  const filtH=h=>flotaF==='all'||h.flota===flotaF;
+  const activos=sems.map(s=>historial.filter(h=>h.numero_semana===s&&filtH(h)&&getFn(h)==='ACTIVO').length);
+  const congel=sems.map(s=>historial.filter(h=>h.numero_semana===s&&filtH(h)&&getFn(h)==='CONGELADO').length);
+  const desact=sems.map(s=>historial.filter(h=>h.numero_semana===s&&filtH(h)&&['DESACTIVADO','EXPULSADO'].includes(getFn(h))).length);
+  const ctx=document.getElementById('chart-barras-sem');if(!ctx)return;
+  chartInst['barras-sem']=new Chart(ctx,{
+    type:'bar',
+    data:{labels:sems.map(s=>'Sem '+s),datasets:[
+      {label:'Activos',data:activos,backgroundColor:CHART_COLORS.ACTIVO+'CC'},
+      {label:'Congelados',data:congel,backgroundColor:CHART_COLORS.CONGELADO+'CC'},
+      {label:'Desactivados',data:desact,backgroundColor:CHART_COLORS.DESACTIVADO+'CC'}
+    ]},
+    options:{plugins:{legend:{position:'top',labels:{font:{size:10}}}},scales:{x:{stacked:true,ticks:{font:{size:9}}},y:{stacked:true,ticks:{font:{size:9}}}},maintainAspectRatio:true,responsive:true}
+  });
+}
+
+function mkMotivos(segs,flotaF){
+  destroyChart('motivos-cond');destroyChart('motivos-plat');
+  const filtS=s=>flotaF==='all'||s.flota===flotaF;
+  const sems=[...new Set(segs.map(s=>s.semana_numero))].sort((a,b)=>a-b).slice(-8);
+  if(!sems.length)return;
+
+  // Conductor
+  const motivosCond=[...new Set(segs.filter(s=>getTipoMotivo(s.motivo)==='conductor').map(s=>s.motivo))];
+  const ctxC=document.getElementById('chart-motivos-cond');
+  if(ctxC&&motivosCond.length){
+    const dsC=motivosCond.slice(0,6).map((m,i)=>({
+      label:m,
+      data:sems.map(s=>segs.filter(x=>x.semana_numero===s&&x.motivo===m&&filtS(x)).length),
+      backgroundColor:['#3B82F6','#60A5FA','#93C5FD','#BFDBFE','#1D4ED8','#1E40AF'][i]+'CC'
+    }));
+    chartInst['motivos-cond']=new Chart(ctxC,{type:'bar',data:{labels:sems.map(s=>'S'+s),datasets:dsC},
+      options:{plugins:{legend:{labels:{font:{size:9}}}},scales:{x:{stacked:true,ticks:{font:{size:9}}},y:{stacked:true,ticks:{font:{size:9}}}},maintainAspectRatio:true}});
+  }
+
+  // Plataforma
+  const motivosPlat=[...new Set(segs.filter(s=>getTipoMotivo(s.motivo)==='plataforma').map(s=>s.motivo))];
+  const ctxP=document.getElementById('chart-motivos-plat');
+  if(ctxP&&motivosPlat.length){
+    const dsP=motivosPlat.slice(0,6).map((m,i)=>({
+      label:m,
+      data:sems.map(s=>segs.filter(x=>x.semana_numero===s&&x.motivo===m&&filtS(x)).length),
+      backgroundColor:['#EF4444','#F87171','#FCA5A5','#DC2626','#B91C1C','#991B1B'][i]+'CC'
+    }));
+    chartInst['motivos-plat']=new Chart(ctxP,{type:'bar',data:{labels:sems.map(s=>'S'+s),datasets:dsP},
+      options:{plugins:{legend:{labels:{font:{size:9}}}},scales:{x:{stacked:true,ticks:{font:{size:9}}},y:{stacked:true,ticks:{font:{size:9}}}},maintainAspectRatio:true}});
+  }
+}
+
+function mkPermisos(perms,flotaF){
+  destroyChart('permisos');
+  const filtP=p=>{const c=S.conductores.find(x=>x.movil==p.movil);return flotaF==='all'||(c?.flota===flotaF);};
+  const sems=[...new Set(perms.map(p=>p.semana_numero).filter(Boolean))].sort((a,b)=>a-b).slice(-8);
+  if(!sems.length)return;
+  const tipos=[...new Set(perms.map(p=>p.tipo).filter(Boolean))];
+  const ctx=document.getElementById('chart-permisos');if(!ctx)return;
+  const palette=['#F59E0B','#EF4444','#8B5CF6','#10B981','#3B82F6','#EC4899','#14B8A6'];
+  const ds=tipos.slice(0,7).map((t,i)=>({
+    label:t.split('/')[0].trim(),
+    data:sems.map(s=>perms.filter(p=>p.semana_numero===s&&p.tipo===t&&filtP(p)).length),
+    backgroundColor:palette[i]+'CC'
+  }));
+  chartInst['permisos']=new Chart(ctx,{type:'bar',data:{labels:sems.map(s=>'Sem '+s),datasets:ds},
+    options:{plugins:{legend:{position:'top',labels:{font:{size:9},padding:6}}},scales:{x:{stacked:true,ticks:{font:{size:9}}},y:{stacked:true,ticks:{font:{size:9}}}},maintainAspectRatio:true}});
+}
+
+function mkMovimientos(novs,flotaF){
+  destroyChart('movimientos');
+  const filtN=n=>flotaF==='all'||n.flota===flotaF;
+  const sems=[...new Set(novs.map(n=>n.semana_numero).filter(Boolean))].sort((a,b)=>a-b).slice(-8);
+  if(!sems.length)return;
+  const reacts=sems.map(s=>novs.filter(n=>n.semana_numero===s&&n.tipo==='reactivacion'&&filtN(n)).length);
+  const desacts=sems.map(s=>novs.filter(n=>n.semana_numero===s&&n.tipo==='desactivar'&&filtN(n)).length);
+  const cambios=sems.map(s=>novs.filter(n=>n.semana_numero===s&&n.tipo==='cambio_flota'&&filtN(n)).length);
+  const nuevos=sems.map(s=>novs.filter(n=>n.semana_numero===s&&n.tipo==='nuevo'&&filtN(n)).length);
+  const ctx=document.getElementById('chart-movimientos');if(!ctx)return;
+  chartInst['movimientos']=new Chart(ctx,{type:'line',
+    data:{labels:sems.map(s=>'Sem '+s),datasets:[
+      {label:'Reactivaciones',data:reacts,borderColor:CHART_COLORS.ACTIVO,backgroundColor:CHART_COLORS.ACTIVO+'33',tension:.3,fill:true},
+      {label:'Desactivaciones',data:desacts,borderColor:CHART_COLORS.DESACTIVADO,backgroundColor:CHART_COLORS.DESACTIVADO+'33',tension:.3,fill:true},
+      {label:'Cambios de flota',data:cambios,borderColor:CHART_COLORS.AEROPUERTO,backgroundColor:CHART_COLORS.AEROPUERTO+'33',tension:.3,fill:false},
+      {label:'Nuevos ingresos',data:nuevos,borderColor:CHART_COLORS.PLAZAS,backgroundColor:CHART_COLORS.PLAZAS+'33',tension:.3,fill:false}
+    ]},
+    options:{plugins:{legend:{position:'top',labels:{font:{size:10},padding:8}}},scales:{x:{ticks:{font:{size:9}}},y:{ticks:{font:{size:9}},beginAtZero:true}},maintainAspectRatio:true}});
+}
+
 function goTab(tab){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
@@ -3094,6 +3269,7 @@ function goTab(tab){
   const btn=document.querySelector(`[data-tab="${tab}"]`);if(btn)btn.classList.add('active');
   if(tab==='seguimiento')renderSeguimiento();
   if(tab==='reportes'){initHistCambios();renderHistCambios();}
+  if(tab==='indicadores')renderInd();
 }
 
 setInterval(updateBanner,60000);
