@@ -1958,46 +1958,64 @@ function renderInd(){
   const flotaF=document.getElementById('ind-flt').value;
   const subF=document.getElementById('ind-sub').value;
   const tipo=document.getElementById('ind-tipo').value;
-  const getEst=c=>tipo==='fin'?c.estado_fin:(c.estado_op||calcEstOp(c));
+  const getEst=h=>tipo==='fin'?(h.estado_fin||h.estFin):(h.estado_op||h.estOp);
   const filtrar=c=>(flotaF==='all'||c.flota===flotaF)&&(subF==='all'||c.subflota===subF||c.sub===subF);
+  // Cards semana actual — usar getEstOp para operativo
   const actCur=S.conductores.filter(c=>filtrar(c)&&(tipo==='fin'?c.estFin==='ACTIVO':getEstOp(c)==='ACTIVO')).length;
-  const conCur=S.conductores.filter(c=>filtrar(c)&&(tipo==='fin'?c.estFin==='CONGELADO':calcEstOp(c)==='CONGELADO')).length;
-  const desCur=S.conductores.filter(c=>filtrar(c)&&['DESACTIVADO','EXPULSADO'].includes(tipo==='fin'?c.estFin:calcEstOp(c))).length;
+  const conCur=S.conductores.filter(c=>filtrar(c)&&(tipo==='fin'?c.estFin==='CONGELADO':getEstOp(c)==='CONGELADO')).length;
+  const desCur=S.conductores.filter(c=>filtrar(c)&&['DESACTIVADO','EXPULSADO'].includes(tipo==='fin'?c.estFin:getEstOp(c))).length;
   let sems=S.historial;
   if(semF!=='all')sems=sems.filter(h=>h.numero_semana==semF);
   const memU=S.conductores.filter(c=>c.esMem&&c.flota==='URBANO'&&(flotaF==='all'||flotaF==='URBANO'));
   const permTipos={};sems.filter(h=>h.permiso_tipo&&filtrar(h)).forEach(h=>{permTipos[h.permiso_tipo]=(permTipos[h.permiso_tipo]||0)+1;});
-  const catData={};S.conductores.filter(c=>c.flota==='AEROPUERTO'&&c.cat&&(flotaF==='all'||flotaF==='AEROPUERTO')).forEach(c=>{catData[c.cat]=(catData[c.cat]||0)+1;});
+  const catData={};S.conductores.filter(c=>c.flota==='AEROPUERTO'&&c.cat&&c.sub&&(flotaF==='all'||flotaF==='AEROPUERTO')).forEach(c=>{
+    const key=c.sub+'|'+c.cat;
+    catData[key]=(catData[key]||0)+1;
+  });
   const numsems=[...new Set(sems.map(h=>h.numero_semana))].sort((a,b)=>b-a).slice(0,10);
+  // Flotas correctas
+  const FLOTAS_LIST=['AEROPUERTO','URBANO','AEROLINEAS','PLAZAS','FLIT'];
   const filas=numsems.flatMap(numSem=>{
-    const flotas=flotaF==='all'?['AEROPUERTO','URBANO','AEROLINEA','JOCKEY','BELLAVISTA']:[flotaF];
-    return flotas.map(f=>{
+    const flotasRender=flotaF==='all'?FLOTAS_LIST:[flotaF];
+    return flotasRender.map(f=>{
       const cds=sems.filter(h=>h.numero_semana===numSem&&h.flota===f&&(subF==='all'||h.subflota===subF));
       if(!cds.length)return'';
       const act=cds.filter(h=>getEst(h)==='ACTIVO').length;
       const con=cds.filter(h=>getEst(h)==='CONGELADO').length;
       const des=cds.filter(h=>['DESACTIVADO','EXPULSADO'].includes(getEst(h))).length;
-      return `<tr><td style="font-weight:600;color:var(--db)">Sem ${numSem}</td><td style="font-size:10px">${f}</td><td><span class="b sb" style="font-size:8px">${subF==='all'?'Todas':subF}</span></td><td><span class="b ac">${act}</span></td><td><span class="b co">${con}</span></td><td><span class="b de">${des}</span></td></tr>`;
+      return '<tr><td style="font-weight:600;color:var(--db)">Sem '+numSem+'</td><td style="font-size:10px">'+f+'</td><td><span class="b sb" style="font-size:8px">'+(subF==='all'?'Todas':subF)+'</span></td><td><span class="b ac">'+act+'</span></td><td><span class="b co">'+con+'</span></td><td><span class="b de">'+des+'</span></td></tr>';
     });
   }).filter(Boolean).join('');
-  document.getElementById('ind-cont').innerHTML=`
-    <div class="cg c3" style="margin-bottom:12px">
-      <div class="mc g"><div class="ml">Activos (${tipo==='fin'?'fin':'op'})</div><div class="mv">${actCur}</div><div style="font-size:10px;opacity:.65;margin-top:2px">Semana actual</div></div>
-      <div class="mc a"><div class="ml">Congelados</div><div class="mv">${conCur}</div></div>
-      <div class="mc r"><div class="ml">Desact / Expulsados</div><div class="mv">${desCur}</div></div>
-    </div>
-    ${memU.length?`<div class="ibox pu" style="margin-bottom:12px"><i class="ti ti-users" style="margin-right:5px"></i><strong>${memU.length} conductores con membresía urbana:</strong> ${memU.map(c=>`<span class="b sb" style="margin-left:4px">${c.movil}</span>`).join('')}</div>`:''}
-    ${Object.keys(catData).length?`<div class="panel" style="margin-bottom:12px"><h4>Categorías de vehículo — Aeropuerto</h4><div class="bc">${Object.entries(catData).map(([cat,n])=>`<div class="br"><span class="bl">${cat} · ${getTarifa(cat)}</span><div class="bt"><div class="bf" style="width:${Math.round(n/Math.max(...Object.values(catData))*100)}%;background:var(--db)88"></div></div><span class="bv">${n}</span></div>`).join('')}</div></div>`:''}
-    ${Object.keys(permTipos).length?`<div class="panel" style="margin-bottom:12px"><h4>Permisos históricos por tipo</h4><div class="bc">${Object.entries(permTipos).sort((a,b)=>b[1]-a[1]).map(([t,n])=>`<div class="br"><span class="bl">${t.split('/')[0].trim()}</span><div class="bt"><div class="bf" style="width:${Math.round(n/Math.max(...Object.values(permTipos))*100)}%;background:var(--da)88"></div></div><span class="bv">${n}</span></div>`).join('')}</div></div>`:''}
-    <div class="sec"><i class="ti ti-activity"></i>Evolución semanal por flota</div>
-    <div class="tw"><table>
-      <thead><tr>
-        <th style="width:70px">Semana</th><th style="width:120px">Flota</th>
-        <th style="width:90px">Subflota</th><th style="width:80px">Activos</th>
-        <th style="width:85px">Congelados</th><th>Desact/Exp</th>
-      </tr></thead>
-      <tbody>${filas||`<tr><td colspan="6"><div class="empty" style="padding:14px">Sin historial</div></td></tr>`}</tbody>
-    </table></div>`;
+
+  // Categorías Aeropuerto con tarifa correcta
+  const catHtml=Object.keys(catData).length?'<div class="panel" style="margin-bottom:12px"><h4>Categorías — Aeropuerto</h4><div class="bc">'+
+    Object.entries(catData).sort((a,b)=>b[1]-a[1]).map(function([key,n]){
+      const parts=key.split('|');const sub=parts[0];const cat=parts[1];
+      const tar=getTarifa(sub,cat);
+      return '<div class="br"><span class="bl">'+cat+' · '+sub+(tar?' · '+tar:'')+'</span><div class="bt"><div class="bf" style="width:'+Math.round(n/Math.max(...Object.values(catData))*100)+'%;background:var(--db)88"></div></div><span class="bv">'+n+'</span></div>';
+    }).join('')+'</div></div>':'';
+
+  const permHtml=Object.keys(permTipos).length?'<div class="panel" style="margin-bottom:12px"><h4>Permisos históricos por tipo</h4><div class="bc">'+
+    Object.entries(permTipos).sort((a,b)=>b[1]-a[1]).map(function([t,n]){
+      return '<div class="br"><span class="bl">'+(t.split('/')[0]||t).trim()+'</span><div class="bt"><div class="bf" style="width:'+Math.round(n/Math.max(...Object.values(permTipos))*100)+'%;background:var(--da)88"></div></div><span class="bv">'+n+'</span></div>';
+    }).join('')+'</div></div>':'';
+
+  const memHtml=memU.length?'<div class="ibox pu" style="margin-bottom:12px"><i class="ti ti-users" style="margin-right:5px"></i><strong>'+memU.length+' conductores con membresía urbana:</strong> '+memU.map(c=>'<span class="b sb" style="margin-left:4px">'+c.movil+'</span>').join('')+'</div>':'';
+
+  document.getElementById('ind-cont').innerHTML=
+    '<div class="cg c3" style="margin-bottom:12px">'+
+      '<div class="mc g"><div class="ml">Activos ('+(tipo==='fin'?'fin':'op')+')</div><div class="mv">'+actCur+'</div><div style="font-size:10px;opacity:.65;margin-top:2px">Semana actual</div></div>'+
+      '<div class="mc a"><div class="ml">Congelados</div><div class="mv">'+conCur+'</div></div>'+
+      '<div class="mc r"><div class="ml">Desact / Expulsados</div><div class="mv">'+desCur+'</div></div>'+
+    '</div>'+
+    memHtml+catHtml+permHtml+
+    '<div class="sec"><i class="ti ti-activity"></i>Evolución semanal por flota</div>'+
+    '<div class="tw"><table>'+
+      '<thead><tr><th style="width:70px">Semana</th><th style="width:120px">Flota</th>'+
+      '<th style="width:90px">Subflota</th><th style="width:80px">Activos</th>'+
+      '<th style="width:85px">Congelados</th><th>Desact/Exp</th></tr></thead>'+
+      '<tbody>'+(filas||'<tr><td colspan="6"><div class="empty" style="padding:14px">Sin historial</div></td></tr>')+'</tbody>'+
+    '</table></div>';
 }
 
 // =============================================
