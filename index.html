@@ -1201,9 +1201,29 @@ async function saveNov(n){
       registrado_por_id:currentUser.id||null,
       registrado_en:new Date().toISOString(),
       fecha_tramite:n.fecha_tramite||n.fecha||null,
-      fecha_efecto:n.fecha_efecto||null
+      fecha_efecto:n.fecha_efecto||null,
+      // Guardar estado anterior para reversión
+      est_fin_antes:n.est_fin_antes||null,
+      flota_antes:n.flota_antes||null,
+      sub_antes:n.sub_antes||null,
+      es_mem_antes:n.es_mem_antes||false
     });
-  }catch(e){console.error('saveNov',e);}
+  }catch(e){
+    // Si las columnas no existen aún, insertar sin ellas
+    try{
+      await sb.from('novedades').insert({
+        movil:n.movil,tipo:n.tipo,flota:n.flota,subflota:n.sub,
+        flota_anterior:n.flotaAnt,subflota_anterior:n.subAnt,
+        motivo:n.motivo,observaciones:n.obs,
+        fecha_registro:n.fecha,semana_numero:n.semana_numero||S.semana,activo:true,
+        registrado_por:currentUser.nombre||'Sistema',
+        registrado_por_id:currentUser.id||null,
+        registrado_en:new Date().toISOString(),
+        fecha_tramite:n.fecha_tramite||n.fecha||null,
+        fecha_efecto:n.fecha_efecto||null
+      });
+    }catch(e2){console.error('saveNov',e2);}
+  }
 }
 
 async function saveCfg(k,v){
@@ -1708,14 +1728,55 @@ function editNov(idx){
 
 async function elimNov(idx){
   const n=S.novedades[idx];if(!n)return;
-  if(!confirm('¿Eliminar esta novedad? (Móvil '+n.movil+' — '+n.tipo.replace(/_/g,' ')+')'))return;
+  if(!confirm('¿Eliminar esta novedad y revertir el cambio en el conductor?\n\nMóvil '+n.movil+' — '+n.tipo.replace(/_/g,' ')))return;
+  const c=S.conductores.find(x=>x.movil==n.movil);
+  // Revertir al estado ANTERIOR exacto del conductor
+  if(c){
+    // El estado anterior viene guardado en la novedad
+    const estAntes=n.est_fin_antes||n.estado_fin_antes||null;
+    const flotaAntes=n.flota_antes||null;
+    const subAntes=n.sub_antes||null;
+    const esMembAntes=n.es_mem_antes||false;
+
+    if(n.tipo==='desactivar'||n.tipo==='baja_semana'){
+      // Revertir estado financiero al anterior (puede ser ACTIVO o CONGELADO)
+      c.estFin=estAntes||'CONGELADO';
+      c.bajaSem=false;c.motivoSalida=null;
+      c.obs='Novedad revertida';
+      await saveC(c);
+    } else if(n.tipo==='reactivacion'){
+      c.estFin=estAntes||'CONGELADO';
+      c.obs='Reactivación revertida';
+      await saveC(c);
+    } else if(n.tipo==='cambio_flota'){
+      if(flotaAntes){
+        c.flota=flotaAntes;
+        c.sub=subAntes||'—';
+        c.obs='Cambio de flota revertido';
+        await saveC(c);
+      }
+    } else if(n.tipo==='membresia_alta'){
+      c.esMem=esMembAntes;
+      c.obs='Alta membresía revertida';
+      await saveC(c);
+    } else if(n.tipo==='membresia_baja'){
+      c.esMem=true;
+      c.sub='Membresía Urbano';
+      c.obs='Baja membresía revertida';
+      await saveC(c);
+    } else if(n.tipo==='nuevo'){
+      // Si se revierte un nuevo ingreso, desactivar el conductor
+      c.estFin='DESACTIVADO';
+      c.obs='Nuevo ingreso revertido';
+      await saveC(c);
+    }
+  }
   S.novedades.splice(idx,1);
   try{
-    // Eliminar de Supabase — buscar por movil + tipo + semana
     await sb.from('novedades').delete().eq('movil',n.movil).eq('tipo',n.tipo).eq('semana_numero',S.semana);
-    syncMsg('✓ Novedad eliminada');
+    syncMsg('✓ Novedad eliminada — conductor revertido al estado anterior');
   }catch(e){console.error('elimNov',e);}
-  renderNovedades();
+  render();
 }
 
 function renderNovedades(){
@@ -2607,7 +2668,16 @@ async function guardarNovedad(){
   const tipoVehiculo=document.getElementById('nov-tipo-vehiculo')?.value||'';
   const fechaTramite=document.getElementById('nov-fecha-tramite')?.value||new Date().toISOString().split('T')[0];
   const fechaEfecto=document.getElementById('nov-fecha-efecto')?.value||fechaTramite;
-  const n={movil,tipo,flota,sub,cat,flotaAnt:['cambio_flota','baja_semana'].includes(tipo)?flotaAnt:null,subAnt:tipo==='cambio_flota'?subAnt:null,motivo:tipo==='desactivar'?motivo:null,obs,fecha:new Date().toLocaleDateString('es-PE'),fecha_tramite:fechaTramite,fecha_efecto:fechaEfecto,semana_numero:S.semana};
+  // Guardar estado anterior del conductor para poder revertir si se elimina la novedad
+  const cActual=S.conductores.find(x=>x.movil==movil);
+  const estFinAntes=cActual?.estFin||null;
+  const estOpAntes=cActual?.estOp||null;
+  const flotaAntes=cActual?.flota||null;
+  const subAntes=cActual?.sub||null;
+  const esMembAntes=cActual?.esMem||false;
+  const n={movil,tipo,flota,sub,cat,flotaAnt:['cambio_flota','baja_semana'].includes(tipo)?flotaAnt:null,subAnt:tipo==='cambio_flota'?subAnt:null,motivo:tipo==='desactivar'?motivo:null,obs,fecha:new Date().toLocaleDateString('es-PE'),fecha_tramite:fechaTramite,fecha_efecto:fechaEfecto,semana_numero:S.semana,
+    // Estado anterior para reversión
+    est_fin_antes:estFinAntes,est_op_antes:estOpAntes,flota_antes:flotaAntes,sub_antes:subAntes,es_mem_antes:esMembAntes};
   S.novedades.push(n);await saveNov(n);
   const c=S.conductores.find(x=>x.movil==movil);
   // Lógica de cuándo entra en vigor
@@ -2684,7 +2754,13 @@ async function guardarNovedad(){
     c.estFin=obs.toLowerCase().includes('expul')||motivo==='Mal comportamiento'?'EXPULSADO':'DESACTIVADO';
     c.motivoSalida=motivo;c.obs=obs||motivo;await saveC(c);
   }
-  cm('m-novedad');render();
+  cm('m-novedad');
+  // Recargar novedades desde Supabase para que aparezcan en pantalla
+  try{
+    const{data:novs}=await sb.from('novedades').select('*').eq('semana_numero',S.semana).order('registrado_en',{ascending:false});
+    if(novs)S.novedades=novs.map(n=>({...n,movil:n.movil,tipo:n.tipo,flota:n.flota,sub:n.subflota,obs:n.observaciones,flotaAnt:n.flota_anterior,subAnt:n.subflota_anterior}));
+  }catch(e){console.error('recarga novedades',e);}
+  render();
 }
 
 function openPlazas(base,tipo){
