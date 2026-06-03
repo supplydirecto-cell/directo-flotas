@@ -1926,10 +1926,7 @@ function buscarConductor(){
   hint.textContent=filtered.length?`${filtered.length} encontrado${filtered.length>1?'s':''}`:' ';
   if(!filtered.length){el.innerHTML=`<div class="empty"><i class="ti ti-search"></i>Sin resultados</div>`;return;}
   const matches_limit=filtered.slice(0,20);
-  hint.textContent=filtered.length?`${filtered.length} encontrado${filtered.length>1?'s':''}`:' ';
-  if(!filtered.length){el.innerHTML=`<div class="empty"><i class="ti ti-search"></i>Sin resultados para "${q}"</div>`;return;}
-  const matches_limit=filtered.slice(0,20); // mostrar máximo 20
-    el.innerHTML=matches_limit.map(function(c){
+  el.innerHTML=matches_limit.map(function(c){
     var ss=S.saludSeg.find(function(x){return x.movil==c.movil;});
     var estOp=getEstOp(c);
     var esFP=FLIT.includes(c.flota);
