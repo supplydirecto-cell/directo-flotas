@@ -1186,13 +1186,12 @@ function svcs(c){return(c.wari||0)+(c.kusi||0)+(c.sky||0)+(c.latam||0);}
 function getLunes(d){const dt=new Date(d);const day=dt.getDay();const diff=dt.getDate()-day+(day===0?-6:1);return new Date(dt.setDate(diff));}
 function fmtF(d){try{return new Date(d+'T12:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'short'});}catch(e){return d||'—';}}
 function getPeriodo(ls){
-  // ls es la fecha de inicio configurada (lunes)
-  const l=new Date(ls+'T12:00:00');
-  // Asegurar que es lunes: ajustar si no lo es
-  const dow=l.getDay(); // 0=dom, 1=lun...
-  if(dow!==1){const diff=dow===0?-6:1-dow;l.setDate(l.getDate()+diff);}
-  const v=new Date(l);v.setDate(l.getDate()+6); // domingo
-  return fmtF(l.toISOString().split('T')[0])+' — '+fmtF(v.toISOString().split('T')[0]);
+  // ls es la fecha de inicio exacta del lunes configurada en Supabase
+  // Usar directamente sin ajuste — si está bien configurada es lunes
+  const partes=ls.split('-');
+  const l=new Date(parseInt(partes[0]),parseInt(partes[1])-1,parseInt(partes[2]),12,0,0);
+  const v=new Date(l);v.setDate(l.getDate()+6); // domingo = lunes + 6
+  return fmtF(ls)+' — '+fmtF(v.toISOString().split('T')[0]);
 }
 function dD(i,f){return Math.max(1,Math.round((new Date(f)-new Date(i))/86400000)+1);}
 function getFlota(m){const c=S.conductores.find(x=>x.movil==m);return c?c.flota:'';}
@@ -1228,12 +1227,12 @@ function calcEstFinProp(c){
 // =============================================
 function genAlertas(){
   const al=[];
-  // Solo generar alertas si hay servicios cargados esta semana
-  // La data histórica importada no debe generar alertas
+  // Solo alertar si hay servicios cargados esta semana
   const hayServicios=S.servicios.wari||S.servicios.kusi||S.servicios.latam||S.servicios.sky;
-  const hayPermisos=S.permisos.length>0;
-  // Si no hay servicios cargados y no hay permisos registrados esta semana, no alertar
-  if(!hayServicios&&!hayPermisos)return al;
+  // Permisos registrados ESTA semana (no históricos)
+  const permsSemActual=S.permisos.filter(p=>p.semana_numero===S.semana||!p.semana_numero);
+  const hayActividad=hayServicios||permsSemActual.length>0;
+  if(!hayActividad)return al;
   S.conductores.forEach(c=>{
     if(FLIT.includes(c.flota)||PLAZAS.includes(c.flota))return;
     if(['DESACTIVADO','EXPULSADO'].includes(c.estFin))return;
@@ -1395,10 +1394,11 @@ function updNavDots(){
   const s0=S.saludSeg.filter(s=>{const c=S.conductores.find(x=>x.movil==s.movil);return c&&svcs(c)===0;});
   document.getElementById('nav-permisos').classList.toggle('has-alert',s0.length>0);
   document.getElementById('nav-servicios').classList.toggle('has-alert',!(S.servicios.wari&&S.servicios.kusi&&S.servicios.latam&&S.servicios.sky));
-  // Seguimiento: conductores sin motivo
-  const sinMotivo=getConductoresSinMotivo().filter(c=>{
+  // Seguimiento: solo mostrar alerta si hay servicios cargados
+  const hayServicios2=S.servicios.wari||S.servicios.kusi||S.servicios.latam||S.servicios.sky;
+  const sinMotivo=hayServicios2?getConductoresSinMotivo().filter(c=>{
     return!S.seguimientoOp.find(s=>s.movil==c.movil&&s.semana_numero===S.semana);
-  });
+  }):[];
   const navSeg=document.getElementById('nav-seguimiento');
   if(navSeg)navSeg.classList.toggle('has-alert',sinMotivo.length>0);
 }
@@ -2627,15 +2627,15 @@ const MOTIVOS_SEG=[...MOTIVOS_SEG_CONDUCTOR,...MOTIVOS_SEG_PLATAFORMA];
 function getTipoMotivo(m){return MOTIVOS_SEG_PLATAFORMA.includes(m)?'plataforma':'conductor';}
 
 function getConductoresSinMotivo(semana){
-  // Solo conductores CONGELADO operativo, afiliados (no FLIT, no PLAZAS)
-  // sin permiso registrado, sin seguimiento de salud
+  // Solo mostrar seguimiento cuando hay servicios cargados
+  const hayServicios=S.servicios.wari||S.servicios.kusi||S.servicios.latam||S.servicios.sky;
+  if(!hayServicios)return [];
   return S.conductores.filter(c=>{
     if(FLIT.includes(c.flota)||PLAZAS.includes(c.flota))return false;
     if(c.cliente==='FLIT')return false;
     if(['DESACTIVADO','EXPULSADO'].includes(c.estFin))return false;
-    // Solo los que están CONGELADO en operativo
     if(getEstOp(c)!=='CONGELADO')return false;
-    if(S.permisos.find(p=>p.movil==c.movil))return false;
+    if(S.permisos.find(p=>p.movil==c.movil&&p.semana_numero===S.semana))return false;
     if(S.saludSeg.find(s=>s.movil==c.movil))return false;
     return true;
   });
