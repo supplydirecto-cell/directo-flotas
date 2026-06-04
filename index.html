@@ -2014,31 +2014,109 @@ function renderHistRep(){
 }
 
 function expReporte(tipo){
-  if(hayBloqueo()){goTab('alertas');alert(`⚠️ ${alPend().length} alerta${alPend().length>1?'s':''} bloqueante${alPend().length>1?'s':''} pendiente${alPend().length>1?'s':''}. Resuélvelas primero.`);return;}
+  if(hayBloqueo()&&tipo==='fin'){goTab('alertas');alert(`⚠️ ${alPend().length} alerta${alPend().length>1?'s':''} bloqueante${alPend().length>1?'s':''} pendiente${alPend().length>1?'s':''}. Resuélvelas primero.`);return;}
   const liq=document.getElementById('exp-liq').value||'';
-  const rows=S.conductores.filter(c=>c.estFin!=='PENDIENTE_PROX').map(c=>{
+  const flotaFil=document.getElementById('exp-flt')?.value||'all';
+
+  if(tipo==='fin'){
+    // ── REPORTE FINANZAS ──
+    // Incluye todos los conductores con membresía + los que tienen novedad o permiso esta semana
+    const novsSem=S.novedades.filter(n=>n.semana_numero===S.semana||!n.semana_numero);
+    const permsSem=S.permisos;
+
+    // Construir detalle por conductor
+    const rows=[];
+    S.conductores.filter(c=>{
+      if(c.estFin==='PENDIENTE_PROX')return false;
+      if(flotaFil!=='all'&&c.flota!==flotaFil)return false;
+      if(FLIT.includes(c.flota))return false;
+      return true;
+    }).forEach(c=>{
+      const p=S.permisos.find(x=>x.movil==c.movil);
+      const ss=S.saludSeg.find(x=>x.movil==c.movil);
+      const nov=novsSem.find(n=>n.movil==c.movil);
+      const esMem=c.flota==='AEROPUERTO'||c.sub==='Membresía Urbano';
+
+      // Determinar detalle
+      let detalle='';
+      if(c.esNuevo)detalle='Nuevo ingreso';
+      else if(nov){
+        const tipo_nov=nov.tipo||'';
+        if(tipo_nov==='reactivacion')detalle='Reactivación';
+        else if(tipo_nov==='cambio_flota')detalle=`Cambio flota: ${nov.flota_antes||nov.flotaAnt||'—'} → ${nov.flota||''}`;
+        else if(tipo_nov==='cambio_categoria')detalle=`Cambio categoría: ${nov.cat_antes||'—'} → ${nov.cat||c.cat||''}`;
+        else if(tipo_nov==='membresia_baja')detalle='Baja membresía → Urbano Regular';
+        else if(tipo_nov==='membresia_alta')detalle='Alta membresía urbana';
+        else if(tipo_nov==='baja_semana')detalle='Baja mitad semana';
+        else if(tipo_nov==='desactivar')detalle='Desactivación';
+        else detalle=tipo_nov.replace(/_/g,' ');
+      }
+
+      // Permiso info
+      const permTipo=p?.tipo||ss?'Salud / reposo médico':'';
+      const permObs=p?.observaciones||p?.obs||ss?.observaciones||ss?.obs||'';
+      const permIni=p?.fecha_inicio||p?.inicio||ss?.fecha_inicio||ss?.inicio||'';
+      const permFin=p?.fecha_fin||p?.fin||ss?.fecha_fin_estimada||ss?.finEst||'';
+      const permDias=p?.dias||(permIni&&permFin?Math.ceil((new Date(permFin)-new Date(permIni))/(1000*60*60*24))+1:'')||'';
+
+      // Fecha inicio membresía (para nuevos aeropuerto)
+      const fecIniMem=c.fechaIniMem||c.fechaIniSvc||'';
+
+      // Solo incluir en reporte finanzas si: tiene membresía, tiene permiso, tiene novedad, o es nuevo
+      if(!esMem&&!p&&!ss&&!nov&&!c.esNuevo&&c.estFin==='ACTIVO')return;
+
+      rows.push([
+        c.movil,
+        c.flota,
+        c.sub||'—',
+        c.cat||'—',
+        detalle||'—',
+        permTipo||'—',
+        permIni||'—',
+        permFin||'—',
+        permDias||'—',
+        fecIniMem||'—'
+      ]);
+    });
+
+    const header='Móvil,Flota,Subflota,Categoría,Detalle,Tipo permiso,Inicio permiso,Fin permiso,Días permiso,Fecha inicio membresía';
+    const csv=[header,...rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','))].join('\n');
+    const BOM='\uFEFF';
+    const blob=new Blob([BOM+csv],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=`Directo_Sem${S.semana}_Finanzas_${new Date().toLocaleDateString('es-PE').replace(/\//g,'-')}.csv`;
+    a.click();URL.revokeObjectURL(url);
+    syncMsg('✓ Reporte Finanzas descargado');
+    return;
+  }
+
+  // ── REPORTE OPERACIONES / COMPLETO ──
+  const rows=S.conductores.filter(c=>{
+    if(c.estFin==='PENDIENTE_PROX')return false;
+    if(flotaFil!=='all'&&c.flota!==flotaFil)return false;
+    return true;
+  }).map(c=>{
     const p=S.permisos.find(x=>x.movil==c.movil);
     const ss=S.saludSeg.find(x=>x.movil==c.movil);
     let det=c.obs||'';
-    if(c.esNuevo)det=`NUEVO — inició servicios el ${c.fechaIniSvc||'—'}`;
-    else if(p)det=`${p.tipo}: ${p.obs||p.observaciones||''}`;
-    else if(ss)det=`Salud / reposo médico: ${ss.obs||ss.observaciones||''}`;
-    if(c.esMem&&c.flota==='URBANO')det+=' [MEMBRESÍA]';
-    if(c.motivoSalida)det+=` [Salida: ${c.motivoSalida}]`;
-    const tarifa=c.flota==='AEROPUERTO'&&c.cat&&c.sub?getTarifa(c.sub,c.cat):'';
-    const estExport=tipo==='op'?calcEstOp(c):c.estFin;
+    if(c.esNuevo)det='NUEVO — inició: '+(c.fechaIniSvc||'—');
+    else if(p)det=p.tipo+': '+(p.obs||p.observaciones||'');
+    else if(ss)det='Salud: '+(ss.obs||ss.observaciones||'');
+    const estExport=tipo==='op'?getEstOp(c):c.estFin;
     const pIni=p?.inicio||p?.fecha_inicio||ss?.inicio||ss?.fecha_inicio||'';
     const pFin=p?.fin||p?.fecha_fin||ss?.finEst||ss?.fecha_fin_estimada||'';
     const dias=p?.dias||'';
-    return[c.movil,c.flota.includes('URBANO')?'URBANO':c.flota,c.sub,c.cat||'',tarifa,estExport,det,pIni,pFin,dias];
+    return[c.movil,c.flota,c.sub,c.cat||'',estExport,det,pIni,pFin,dias,svcs(c)];
   });
-  const csv=['Móvil,Flota,Subflota,Categoría,Tarifa,Estado,Detalle / Observación,Inicio permiso,Fin permiso,Días',...rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','))].join('\n');
+  const csv=['Móvil,Flota,Subflota,Categoría,Estado,Detalle,Inicio permiso,Fin permiso,Días,Servicios',...rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','))].join('\n');
   const BOM='\uFEFF';
   const blob=new Blob([BOM+csv],{type:'text/csv;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url;
-  a.download=`Directo_Sem${S.semana}_${tipo==='fin'?'Finanzas':tipo==='op'?'Operaciones':'Completo'}_${new Date().toLocaleDateString('es-PE').replace(/\//g,'-')}.csv`;
+  a.download=`Directo_Sem${S.semana}_${tipo==='op'?'Operaciones':'Completo'}_${new Date().toLocaleDateString('es-PE').replace(/\//g,'-')}.csv`;
   a.click();URL.revokeObjectURL(url);
   syncMsg('✓ CSV descargado');
 }
@@ -2610,7 +2688,7 @@ function openNov(tipo){
     membresia_alta:'Alta membresía urbana',membresia_baja:'Baja membresía urbana'};
   document.getElementById('nov-tit').textContent=t[tipo]||tipo;
   updSubsNov();updSubsNovAnt();
-  // Fechas: trámite = hoy, efecto = según tipo
+  // Fechas: trámite = hoy, efecto = editable con sugerencia según tipo
   const hoy2=new Date().toISOString().split('T')[0];
   const tramiteEl=document.getElementById('nov-fecha-tramite');
   const efectoEl=document.getElementById('nov-fecha-efecto');
@@ -2625,21 +2703,46 @@ function openNov(tipo){
   const esProxLunes=['cambio_flota','cambio_categoria','membresia_alta','membresia_baja'].includes(tipo);
   const esAero=tipo==='reactivacion'&&document.getElementById('nov-flota')?.value==='AEROPUERTO';
   if(efectoEl){
+    // Siempre editable — solo sugerimos el valor por defecto
+    efectoEl.disabled=false;
     if(esProxLunes||esAero){
       efectoEl.value=proxLunesStr;
-      if(efectoHint)efectoHint.textContent='Próximo lunes — aparece en el siguiente reporte';
-      if(efectoLbl)efectoLbl.textContent='Fecha de efecto (próximo lunes)';
+      if(efectoLbl)efectoLbl.textContent='Fecha de efecto (editable)';
+      if(efectoHint)efectoHint.textContent='Sugerido: próximo lunes. Modifica si el cambio aplica en otra fecha.';
     } else if(tipo==='nuevo'){
       efectoEl.value=hoy2;
-      if(efectoHint)efectoHint.textContent='Fecha desde la que opera el conductor';
-      if(efectoLbl)efectoLbl.textContent='Fecha de inicio de operaciones';
+      if(efectoLbl)efectoLbl.textContent='Fecha de inicio de operaciones (editable)';
+      if(efectoHint)efectoHint.textContent='¿Desde cuándo opera? Modifica si es una fecha distinta a hoy.';
     } else {
       efectoEl.value=hoy2;
-      if(efectoHint)efectoHint.textContent='Aplica esta semana';
-      if(efectoLbl)efectoLbl.textContent='Fecha de efecto';
+      if(efectoLbl)efectoLbl.textContent='Fecha de efecto (editable)';
+      if(efectoHint)efectoHint.textContent='Modifica si el cambio aplica en una fecha distinta a hoy.';
     }
+    // Actualizar hint dinámicamente al cambiar la fecha
+    efectoEl.oninput=function(){
+      const semanaFecha=getFechaSemana(this.value);
+      if(efectoHint)efectoHint.textContent=semanaFecha?'Entra en reporte de '+semanaFecha:'';
+    };
   }
   document.getElementById('m-novedad').style.display='flex';
+}
+
+function getFechaSemana(fechaStr){
+  if(!fechaStr)return'';
+  try{
+    const f=new Date(fechaStr+'T12:00:00');
+    const ini=new Date(S.semanaInicio+'T12:00:00');
+    const fin=new Date(ini);fin.setDate(ini.getDate()+6);
+    const proxL=new Date(ini);proxL.setDate(ini.getDate()+7);
+    const fmt=d=>d.toLocaleDateString('es-PE',{day:'2-digit',month:'short'});
+    if(f>=ini&&f<=fin)return`Sem ${S.semana} (${fmt(ini)} — ${fmt(fin)})`;
+    if(f>=proxL){
+      const proxFin=new Date(proxL);proxFin.setDate(proxL.getDate()+6);
+      return`Sem ${S.semana+1} (${fmt(proxL)} — ${fmt(proxFin)})`;
+    }
+    if(f<ini)return`Semana anterior — retroactivo`;
+    return'';
+  }catch(e){return'';}
 }
 
 function onMovilN(){
