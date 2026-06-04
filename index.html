@@ -758,16 +758,32 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--g50)}tr.al td{b
     <h3 id="nov-tit">Novedad</h3>
     <input type="hidden" id="nov-tipo">
     <div class="fg"><label>Móvil</label><input type="text" id="nov-movil" placeholder="Ej: 3450" oninput="onMovilN()" autocomplete="off"></div>
-    <div id="nov-actual" style="font-size:11px;color:var(--g600);margin-bottom:8px;min-height:15px"></div>
+    <div id="nov-actual" style="font-size:11px;color:var(--g600);margin-bottom:6px;min-height:15px"></div>
+    <div id="nov-regla" style="display:none;margin-bottom:10px"></div>
+    <div id="nov-destino" style="display:none;margin-bottom:10px"></div>
+    <!-- Alerta de restricción Aeropuerto -->
+    <div id="nov-restriccion" style="display:none;margin-bottom:10px"></div>
+    <!-- Excepción -->
+    <div id="nov-excepcion-g" style="display:none;margin-bottom:10px">
+      <div style="background:var(--drl);border:1px solid #F09595;border-radius:var(--r);padding:10px 13px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--dr)">
+          <input type="checkbox" id="nov-excepcion" onchange="toggleExcepcion()">
+          Caso excepcional — desbloquear restricción
+        </label>
+        <div id="nov-excepcion-obs-g" style="display:none;margin-top:8px">
+          <input type="text" id="nov-excepcion-obs" placeholder="Motivo de la excepción (obligatorio)..." style="width:100%;font-size:11px">
+        </div>
+      </div>
+    </div>
     <div id="av-baja" class="ibox sa" style="display:none"><i class="ti ti-info-circle"></i> <strong>Baja mitad semana:</strong> Fin=CONGELADO esta semana. Próxima → DESACTIVADO.</div>
     <div id="av-prox-lunes" class="ibox in" style="display:none"><i class="ti ti-clock"></i> <strong>Entra en vigor el próximo lunes.</strong> Aparece en el reporte de la semana siguiente.</div>
-    <div class="fg"><label>Flota</label>
+    <div id="nov-flota-g" class="fg"><label>Flota</label>
       <select id="nov-flota" onchange="updSubsNov()">
         <option>AEROPUERTO</option><option>URBANO</option><option>AEROLINEAS</option>
         <option>PLAZAS</option><option>FLIT</option>
       </select>
     </div>
-    <div class="fg"><label>Subflota</label><select id="nov-sub" onchange="updCatsParaSub()"></select></div>
+    <div id="nov-sub-g" class="fg"><label>Subflota</label><select id="nov-sub" onchange="updCatsParaSub();onSubDestinoChange()"></select></div>
     <div class="fg" id="nov-cat-g" style="display:none">
       <label>Categoría (Aeropuerto) — determina tarifa de membresía</label>
       <select id="nov-cat"></select>
@@ -2639,12 +2655,65 @@ async function cerrarSalud(i){
 function updSubsNov(){
   const fl=document.getElementById('nov-flota').value;
   const tipo=document.getElementById('nov-tipo').value;
+  const movil=document.getElementById('nov-movil').value.trim();
   const sel=document.getElementById('nov-sub');sel.innerHTML='';
   (SUBFLOTAS[fl]||[]).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);});
   const catG=document.getElementById('nov-cat-g');
   if(catG)catG.style.display=fl==='AEROPUERTO'?'block':'none';
-  sel.onchange=()=>updCatsParaSub();
+  sel.onchange=()=>{updCatsParaSub();onSubDestinoChange();};
   updCatsParaSub();
+  // Si va a Aeropuerto, validar historial
+  if(fl==='AEROPUERTO'&&movil)validarHistAeropuerto(movil);
+  else{
+    const r=document.getElementById('nov-restriccion');if(r)r.style.display='none';
+    const eg=document.getElementById('nov-excepcion-g');if(eg)eg.style.display='none';
+  }
+  onSubDestinoChange();
+}
+
+function validarHistAeropuerto(movil){
+  const restricEl=document.getElementById('nov-restriccion');
+  const excepG=document.getElementById('nov-excepcion-g');
+  const excep=document.getElementById('nov-excepcion');
+  if(!restricEl)return;
+  // Buscar historial de membresía Diurna/Nocturna
+  const histMem=S.historial.filter(h=>h.movil==movil&&MEM_TURNO.includes(h.subflota));
+  if(!histMem.length){
+    restricEl.style.display='none';
+    if(excepG)excepG.style.display='none';
+    return;
+  }
+  const subActual=document.getElementById('nov-sub')?.value||'';
+  const esBloqueado=subActual==='Aeropuerto Regular'&&!(excep?.checked);
+  restricEl.style.display='block';
+  if(esBloqueado){
+    restricEl.innerHTML=`<div class="ibox ch">
+      <div style="font-size:11px">
+        <div style="font-weight:600;color:var(--dr);margin-bottom:3px">⛔ Restricción — conductor con historial Membresía</div>
+        <div>Este conductor estuvo en <strong>${histMem[histMem.length-1]?.subflota||'Membresía'}</strong>. 
+        Solo puede volver a <span class="b sb">Membresía Diurna</span> o <span class="b sb">Membresía Nocturna</span>.</div>
+        <div style="color:var(--g600);font-size:10px;margin-top:2px">Aeropuerto Regular es exclusivo para conductores sin historial de membresía.</div>
+      </div>
+    </div>`;
+    if(excepG)excepG.style.display='block';
+  } else {
+    restricEl.innerHTML=`<div class="ibox in" style="border-color:#B5D4F4">
+      <div style="font-size:11px">
+        <div style="font-weight:600;color:var(--db);margin-bottom:2px">ℹ️ Conductor con historial Membresía Diurna/Nocturna</div>
+        <div>Puede volver a <span class="b sb">Membresía Diurna</span>, <span class="b sb">Membresía Nocturna</span> o <span class="b sb">Aeropuerto Van</span>.</div>
+      </div>
+    </div>`;
+    if(excepG)excepG.style.display='none';
+  }
+}
+
+function toggleExcepcion(){
+  const checked=document.getElementById('nov-excepcion')?.checked;
+  const obsG=document.getElementById('nov-excepcion-obs-g');
+  if(obsG)obsG.style.display=checked?'block':'none';
+  // Re-validar para quitar el bloqueo visual
+  const movil=document.getElementById('nov-movil').value.trim();
+  if(movil)validarHistAeropuerto(movil);
 }
 
 function updCatsParaSub(){
@@ -2675,13 +2744,25 @@ function openNov(tipo){
   document.getElementById('nov-ant-g').style.display=['cambio_flota','baja_semana'].includes(tipo)?'block':'none';
   document.getElementById('nov-sant-g').style.display=tipo==='cambio_flota'?'block':'none';
   const avBaja=document.getElementById('av-baja');if(avBaja)avBaja.style.display=tipo==='baja_semana'?'block':'none';
-  // Campos vehículo
-  const showVeh=['nuevo','reactivacion','cambio_flota','cambio_categoria'].includes(tipo);
-  const vehG=document.getElementById('nov-vehiculo-g');if(vehG)vehG.style.display=showVeh?'block':'none';
-  const catG=document.getElementById('nov-cat-g');if(catG)catG.style.display=tipo==='cambio_categoria'?'block':'none';
-  // Aviso próximo lunes
-  const proxL=['cambio_flota','cambio_categoria','membresia_alta','membresia_baja'].includes(tipo);
-  const avL=document.getElementById('av-prox-lunes');if(avL)avL.style.display=proxL?'block':'none';
+
+  // Ocultar flota/subflota cuando no son editables
+  const tiposSinFlota=['membresia_baja','baja_semana','desactivar'];
+  const flotaG=document.getElementById('nov-flota-g');
+  const subG=document.getElementById('nov-sub-g');
+  if(flotaG)flotaG.style.display=tiposSinFlota.includes(tipo)?'none':'block';
+  if(subG)subG.style.display=tiposSinFlota.includes(tipo)?'none':'block';
+
+  // Para baja membresía mostrar info de lo que pasará
+  const avPl=document.getElementById('av-prox-lunes');
+  if(avPl){
+    if(tipo==='membresia_baja'){
+      avPl.style.display='block';
+      avPl.innerHTML='<i class="ti ti-clock"></i> <strong>Baja membresía urbana:</strong> El conductor pasa automáticamente a <strong>Urbano Regular</strong> desde la fecha de efecto.';
+    } else {
+      avPl.style.display=['cambio_flota','cambio_categoria','membresia_alta'].includes(tipo)?'block':'none';
+      avPl.innerHTML='<i class="ti ti-clock"></i> <strong>Entra en vigor el próximo lunes.</strong> Aparece en el reporte de la semana siguiente.';
+    }
+  }
   const t={nuevo:'Nuevo ingreso',reactivacion:'Reactivación',cambio_flota:'Cambio de flota',
     baja_semana:'Baja a mitad de semana',desactivar:'Desactivar / Expulsar',
     cambio_categoria:'Cambio de categoría — Aeropuerto',
@@ -2748,12 +2829,91 @@ function getFechaSemana(fechaStr){
 function onMovilN(){
   const m=document.getElementById('nov-movil').value.trim();
   const c=S.conductores.find(x=>x.movil==m);
-  document.getElementById('nov-actual').innerHTML=c?`Actual: <span style="font-size:11px">${c.flota} <span class="b sb">${c.sub}</span>${c.cat?` <span class="b ca">${c.cat}</span>`:''} · ${c.estFin}</span>`:'';
-  if(c){document.getElementById('nov-flota').value=c.flota;updSubsNov();document.getElementById('nov-sub').value=c.sub||'—';}
-  const tipo=document.getElementById('nov-tipo').value;const fl=document.getElementById('nov-flota').value;
-  const esAero=fl==='AEROPUERTO'&&['reactivacion','nuevo'].includes(tipo);
-  document.getElementById('av-prox').style.display=esAero?'block':'none';
-  document.getElementById('nov-fecha-g').style.display=esAero?'block':'none';
+  const tipo=document.getElementById('nov-tipo').value;
+
+  // Info del conductor actual
+  document.getElementById('nov-actual').innerHTML=c?
+    `<div style="padding:7px 10px;background:var(--g50);border-radius:6px;border:1px solid var(--g200)">
+      <span style="font-weight:600">Actual:</span> ${c.flota} 
+      <span class="b sb" style="margin:0 3px">${c.sub}</span>
+      ${c.cat?`<span class="b ca">${c.cat}</span>`:''}
+      · <span class="b ${c.estFin.toLowerCase()}">${c.estFin}</span>
+      ${c.esMem?'<span class="b me" style="font-size:8px;margin-left:3px">MEM</span>':''}
+      ${c.placa?`<span style="color:var(--g400);margin-left:6px">🚗 ${c.placa}</span>`:''}
+    </div>`:'';
+
+  // Regla y destino según tipo
+  const reglaEl=document.getElementById('nov-regla');
+  const destinoEl=document.getElementById('nov-destino');
+  if(reglaEl)reglaEl.style.display='none';
+  if(destinoEl)destinoEl.style.display='none';
+
+  if(c){
+    // Pre-llenar flota con la actual para tipos que la necesitan
+    if(['reactivacion','cambio_flota','nuevo'].includes(tipo)){
+      document.getElementById('nov-flota').value=c.flota;
+      updSubsNov();
+      setTimeout(()=>{document.getElementById('nov-sub').value=c.sub||'';},50);
+    }
+
+    // Mostrar regla según tipo
+    if(tipo==='membresia_baja'&&reglaEl){
+      reglaEl.style.display='block';
+      reglaEl.innerHTML=`<div class="ibox in">
+        <div style="font-size:11px">
+          <div style="font-weight:600;margin-bottom:4px">📋 Regla: Baja membresía urbana</div>
+          <div>De: <span class="b sb">${c.sub}</span> → Pasa a: <span class="b sb">Urbano Regular</span> <span style="color:var(--g600)">(27.9%)</span></div>
+          <div style="color:var(--g600);margin-top:3px;font-size:10px">El conductor mantiene su código y vehículo. Solo cambia la condición de membresía.</div>
+        </div>
+      </div>`;
+    } else if(tipo==='membresia_alta'&&reglaEl&&c.sub==='Urbano Regular'){
+      reglaEl.style.display='block';
+      reglaEl.innerHTML=`<div class="ibox pu">
+        <div style="font-size:11px">
+          <div style="font-weight:600;margin-bottom:4px">📋 Alta membresía urbana</div>
+          <div>De: <span class="b sb">Urbano Regular</span> → Pasa a: <span class="b sb">Membresía Urbano</span></div>
+          <div style="color:var(--g600);margin-top:3px;font-size:10px">Entra en vigor el próximo lunes. Coordinar con Finanzas el cobro.</div>
+        </div>
+      </div>`;
+    } else if(tipo==='desactivar'&&reglaEl){
+      reglaEl.style.display='block';
+      const esMem=c.flota==='AEROPUERTO'||c.sub==='Membresía Urbano';
+      reglaEl.innerHTML=`<div class="ibox ch">
+        <div style="font-size:11px">
+          <div style="font-weight:600;margin-bottom:4px">⚠️ Desactivación</div>
+          ${esMem?'<div style="color:var(--dr)">Conductor con membresía — verificar cobro proporcional con Finanzas.</div>':''}
+          <div style="color:var(--g600);margin-top:3px;font-size:10px">El conductor pasa a DESACTIVADO. Si es expulsado, selecciona "Mal comportamiento" como motivo.</div>
+        </div>
+      </div>`;
+    }
+  }
+
+  // Fix error de nov-fecha-g que ya no existe
+  const esAero=c&&c.flota==='AEROPUERTO'&&['reactivacion','nuevo'].includes(tipo);
+  const avProx=document.getElementById('av-prox');
+  if(avProx)avProx.style.display=esAero?'block':'none';
+}
+
+// Actualizar regla cuando cambia subflota destino en cambio de flota
+function onSubDestinoChange(){
+  const tipo=document.getElementById('nov-tipo').value;
+  if(tipo!=='cambio_flota')return;
+  const flota=document.getElementById('nov-flota').value;
+  const sub=document.getElementById('nov-sub').value;
+  const reglaEl=document.getElementById('nov-regla');
+  if(!reglaEl)return;
+  let regla='';
+  if(flota==='AEROPUERTO'){
+    const tarifa=getTarifa(sub,document.getElementById('nov-cat')?.value||'');
+    regla=`<div class="ibox in"><div style="font-size:11px"><div style="font-weight:600;margin-bottom:3px">📋 Destino: ${flota} · ${sub}</div>${tarifa?`<div>Tarifa membresía: <strong>${tarifa}</strong></div>`:'<div>Confirmar categoría para ver tarifa</div>'}<div style="color:var(--g600);font-size:10px;margin-top:2px">Entra en vigor próximo lunes. Aeropuerto requiere permiso de acceso LAP.</div></div></div>`;
+  } else if(flota==='URBANO'){
+    const porc=sub==='Membresía Urbano'?'membresía':sub==='Urbano Partner'?'29%':'27.9%';
+    regla=`<div class="ibox in"><div style="font-size:11px"><div style="font-weight:600;margin-bottom:3px">📋 Destino: ${flota} · ${sub}</div><div>Condición: <strong>${porc}</strong></div><div style="color:var(--g600);font-size:10px;margin-top:2px">Entra en vigor próximo lunes.</div></div></div>`;
+  } else if(flota==='AEROLINEAS'){
+    regla=`<div class="ibox in"><div style="font-size:11px"><div style="font-weight:600;margin-bottom:3px">📋 Destino: ${flota} · ${sub}</div><div style="color:var(--g600);font-size:10px">Entra en vigor próximo lunes.</div></div></div>`;
+  }
+  if(regla){reglaEl.style.display='block';reglaEl.innerHTML=regla;}
+  else reglaEl.style.display='none';
 }
 
 async function guardarNovedad(){
@@ -2771,14 +2931,29 @@ async function guardarNovedad(){
   const tipoVehiculo=document.getElementById('nov-tipo-vehiculo')?.value||'';
   const fechaTramite=document.getElementById('nov-fecha-tramite')?.value||new Date().toISOString().split('T')[0];
   const fechaEfecto=document.getElementById('nov-fecha-efecto')?.value||fechaTramite;
-  // Guardar estado anterior del conductor para poder revertir si se elimina la novedad
+  const excepcion=document.getElementById('nov-excepcion')?.checked||false;
+  const excepcionObs=document.getElementById('nov-excepcion-obs')?.value?.trim()||'';
+  // Validar restricción Aeropuerto Regular con historial membresía
+  if(flota==='AEROPUERTO'&&sub==='Aeropuerto Regular'&&!excepcion){
+    const histMem=S.historial.filter(h=>h.movil==movil&&MEM_TURNO.includes(h.subflota));
+    if(histMem.length){
+      alert('⛔ Este conductor tiene historial en Membresía Diurna/Nocturna.\nNo puede ir a Aeropuerto Regular.\nSi es un caso excepcional, marca la casilla de excepción y escribe el motivo.');
+      return;
+    }
+  }
+  if(excepcion&&!excepcionObs){
+    alert('Debes escribir el motivo de la excepción.');
+    return;
+  }
   const cActual=S.conductores.find(x=>x.movil==movil);
   const estFinAntes=cActual?.estFin||null;
   const estOpAntes=cActual?.estOp||null;
   const flotaAntes=cActual?.flota||null;
   const subAntes=cActual?.sub||null;
   const esMembAntes=cActual?.esMem||false;
-  const n={movil,tipo,flota,sub,cat,flotaAnt:['cambio_flota','baja_semana'].includes(tipo)?flotaAnt:null,subAnt:tipo==='cambio_flota'?subAnt:null,motivo:tipo==='desactivar'?motivo:null,obs,fecha:new Date().toLocaleDateString('es-PE'),fecha_tramite:fechaTramite,fecha_efecto:fechaEfecto,semana_numero:S.semana,
+  const obsFinal=excepcion?`${obs} [EXCEPCIÓN: ${excepcionObs}]`:obs;
+  const n={movil,tipo,flota,sub,cat,flotaAnt:['cambio_flota','baja_semana'].includes(tipo)?flotaAnt:null,subAnt:tipo==='cambio_flota'?subAnt:null,motivo:tipo==='desactivar'?motivo:null,obs:obsFinal,fecha:new Date().toLocaleDateString('es-PE'),fecha_tramite:fechaTramite,fecha_efecto:fechaEfecto,semana_numero:S.semana,
+    es_excepcion:excepcion,excepcion_motivo:excepcionObs||null,
     // Estado anterior para reversión
     est_fin_antes:estFinAntes,est_op_antes:estOpAntes,flota_antes:flotaAntes,sub_antes:subAntes,es_mem_antes:esMembAntes};
   S.novedades.push(n);await saveNov(n);
